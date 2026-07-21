@@ -1,0 +1,10 @@
+resources:
+  postgres_projects:
+    workshop_lakebase:
+      project_id: "lakebase-workshop-${workspace.current_user.id}"
+      display_name: "Lakebase Workshop — ${workspace.current_user.name.givenName} ${workspace.current_user.name.familyName}"
+      pg_version: 17
+      default_endpoint_settings:
+        autoscaling_limit_min_cu: 0.5
+        autoscaling_limit_max_cu: 2
+        suspend_timeout_duration: 300s

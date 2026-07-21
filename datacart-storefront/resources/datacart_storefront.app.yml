@@ -1,0 +1,6 @@
+resources:
+  apps:
+    datacart_storefront:
+      name: "storefront-${workspace.current_user.id}"
+      description: "DataCart Storefront — ${workspace.current_user.name.givenName} ${workspace.current_user.name.familyName}"
+      source_code_path: ${workspace.file_path}
