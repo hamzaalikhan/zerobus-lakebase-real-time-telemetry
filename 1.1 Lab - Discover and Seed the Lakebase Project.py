@@ -5,7 +5,7 @@
 # MAGIC This notebook gives you a hands-on tour of your Lakebase Autoscaling project. You'll discover
 # MAGIC the project, connect via OAuth, seed an e-commerce schema, and explore Postgres system
 # MAGIC metadata — the same metadata your analytics tooling will see once we register Lakebase in
-# MAGIC Unity Catalog (Lab 4.1).
+# MAGIC Unity Catalog (Bonus Lab 1.1).
 # MAGIC
 # MAGIC ## Learning Objectives
 # MAGIC
@@ -824,7 +824,7 @@ for row in rows:
 # MAGIC useful view for finding slow queries on a Postgres server, and it's pre-installed on every
 # MAGIC Lakebase Autoscaling project.
 # MAGIC
-# MAGIC We'll come back to this in **Lab 8 — Monitoring**, but it's worth seeing now so you know
+# MAGIC We'll come back to this in **Bonus Lab 6.1 — Monitoring**, but it's worth seeing now so you know
 # MAGIC the data is already accumulating.
 
 # COMMAND ----------
@@ -950,7 +950,7 @@ print("=" * 60)
 # MAGIC
 # MAGIC After registration, query your Lakebase data using SQL warehouses or any Unity Catalog-connected tool.
 # MAGIC
-# MAGIC > **You'll do this hands-on in Lab 4.1** (Register Lakebase in Unity Catalog) — including a federated join scenario that's the entire reason data-centric users care about this feature.
+# MAGIC > **You'll do this hands-on in Bonus Lab 1.1** (Register Lakebase in Unity Catalog) — including a federated join scenario that's the entire reason data-centric users care about this feature.
 # MAGIC
 # MAGIC <div style="
 # MAGIC   border-left: 4px solid #ff9800;

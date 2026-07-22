@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 7.1: Point-in-Time Recovery (PITR) & Snapshots
+# MAGIC # Bonus Lab 5.1: Point-in-Time Recovery (PITR) & Snapshots
 # MAGIC
 # MAGIC ---
 # MAGIC
@@ -11,7 +11,7 @@
 # MAGIC ## Why this lab matters for data-centric teams
 # MAGIC
 # MAGIC In a data-centric workshop, PITR is more than a database recovery feature — it's the test of
-# MAGIC whether your downstream data flows are *resilient*. After Labs 4.1 and 5.1, you have a
+# MAGIC whether your downstream data flows are *resilient*. After Bonus Lab 1.1 (federation) and Lab 4.1 (Lakehouse Sync), you have a
 # MAGIC federated catalog and a Lakehouse Sync pipeline both reading from production. When production
 # MAGIC has an outage, **what happens to those flows, and do they recover automatically?** We'll
 # MAGIC observe that explicitly during the disaster.
@@ -690,7 +690,7 @@ print("=" * 60)
 # MAGIC > The storefront detected the restored tables within 30 seconds and automatically recovered.
 # MAGIC >
 # MAGIC > **Note:** The priority badges on orders have disappeared — PITR restored the database
-# MAGIC > to a point in time before Lab 6.3 added the `priority` column. This is expected behavior
+# MAGIC > to a point in time before Bonus Lab 4.1 added the `priority` column. This is expected behavior
 # MAGIC > and illustrates that PITR is a true point-in-time snapshot, not just data recovery.
 # MAGIC >
 # MAGIC > Run the next step to re-apply the missing migrations and bring production back to its full feature set.
@@ -702,7 +702,7 @@ print("=" * 60)
 # MAGIC
 # MAGIC PITR restored the data, but the schema is from an earlier point in time. Any migrations
 # MAGIC applied **after** the recovery point need to be replayed. This is the same pattern as
-# MAGIC Lab 6.2 — idempotent DDL that's safe to run multiple times.
+# MAGIC Bonus Lab 3.1 — idempotent DDL that's safe to run multiple times.
 # MAGIC
 # MAGIC This is a key operational takeaway: **after PITR recovery, always check which migrations
 # MAGIC need to be re-applied.**
@@ -712,7 +712,7 @@ print("=" * 60)
 print("🔄 Re-applying post-recovery migrations...\n")
 
 POST_RECOVERY_SQL = f"""
--- From Lab 6.3: Add email_verified to customers
+-- From Bonus Lab 4.1: Add email_verified to customers
 ALTER TABLE {db_schema}.customers
 ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
 
@@ -720,7 +720,7 @@ UPDATE {db_schema}.customers
 SET email_verified = TRUE
 WHERE id % 3 = 0;
 
--- From Lab 6.3: Add priority to orders
+-- From Bonus Lab 4.1: Add priority to orders
 ALTER TABLE {db_schema}.orders
 ADD COLUMN IF NOT EXISTS priority VARCHAR(10) DEFAULT 'normal';
 
@@ -765,7 +765,7 @@ print(f"\n🎉 Production is fully restored with ALL features!")
 # MAGIC Refresh the **DataCart Storefront** one more time:
 # MAGIC - Priority badges are back on the Orders page
 # MAGIC - Verified badge is back in the navbar
-# MAGIC - All features from Labs 3.3 and 3.4 are restored
+# MAGIC - All features from Bonus Lab 4.1 are restored
 # MAGIC
 # MAGIC > **Key Takeaway:** PITR recovers your data to a point in time. Post-recovery,
 # MAGIC > you re-apply any migrations that happened after the recovery point — just like

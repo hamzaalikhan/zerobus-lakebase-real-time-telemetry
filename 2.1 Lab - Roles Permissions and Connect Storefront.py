@@ -452,7 +452,7 @@ for r in roles:
 # MAGIC | `ALTER DEFAULT PRIVILEGES` | Ensures future tables (reviews, loyalty_members, promotions) are automatically accessible |
 # MAGIC
 # MAGIC > The `ALTER DEFAULT PRIVILEGES` grants are important — as the workshop progresses
-# MAGIC > and new tables are created (promotions in Lab 3.1, reviews in Lab 6.2), the SP
+# MAGIC > and new tables are created (promotions in Lab 3.1, reviews in Bonus Lab 3.1), the SP
 # MAGIC > will automatically have access without needing to re-run this notebook.
 
 # COMMAND ----------
@@ -585,7 +585,7 @@ for m in memberships:
 # MAGIC %md
 # MAGIC ## Step 8: Grant Roles on Dev Branches (Optional)
 # MAGIC
-# MAGIC If you've already created branches in Labs 3.1-3.4, the SP needs roles on those too.
+# MAGIC If you've already created branches in Bonus Lab 2.1 (branching), the SP needs roles on those too.
 # MAGIC This is because each branch has its own independent set of Postgres roles and grants.
 # MAGIC
 # MAGIC > You can re-run this cell any time after creating new branches.
@@ -635,7 +635,7 @@ for m in memberships:
 #         print(f"   ❌ Failed on {branch_id}: {e}")
 
 # if granted_count == 0:
-#     print("ℹ️ No dev branches found (only production). This is expected before Labs 3.1-3.4.")
+#     print("ℹ️ No dev branches found (only production). This is expected before Bonus Lab 2.1 (branching).")
 # else:
 #     print(f"\n✅ Granted roles on {granted_count} branch(es)")
 
@@ -676,10 +676,10 @@ conn.close()
 # MAGIC labs, the storefront will **evolve automatically**:
 # MAGIC
 # MAGIC - **Lab 3.1** — Sale badges and discount prices appear via Reverse ETL
-# MAGIC - **Labs 4.1 / 5.1** — UC foreign catalog and Lakehouse Sync go live (no storefront change; analytics surface lights up)
-# MAGIC - **Lab 6.2** — Star ratings, loyalty badges, and "Earn pts" labels appear
-# MAGIC - **Lab 6.3** — Priority badges on orders, verified badge in navbar
-# MAGIC - **Lab 7.1** — Orders page breaks during the PITR disaster, then recovers
+# MAGIC - **Bonus Lab 1.1 (federation) and Lab 4.1 (Lakehouse Sync)** — UC foreign catalog and Lakehouse Sync go live (no storefront change; analytics surface lights up)
+# MAGIC - **Bonus Lab 3.1** — Star ratings, loyalty badges, and "Earn pts" labels appear
+# MAGIC - **Bonus Lab 4.1** — Priority badges on orders, verified badge in navbar
+# MAGIC - **Bonus Lab 5.1** — Orders page breaks during the PITR disaster, then recovers
 # MAGIC
 # MAGIC > The `ALTER DEFAULT PRIVILEGES` grants ensure the SP can access new tables
 # MAGIC > created in later labs without needing to re-run this notebook.

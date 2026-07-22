@@ -84,17 +84,26 @@
 # MAGIC
 # MAGIC Throughout this workshop, you'll interact with the **DataCart Storefront** — a live customer-facing e-commerce web application connected to your Lakebase project. As you run each lab, the storefront **evolves in real time**:
 # MAGIC
+# MAGIC **Core labs (the main workshop loop):**
+# MAGIC
 # MAGIC | Lab | What Happens |
 # MAGIC |-----|-------------|
 # MAGIC | **1.1 Setup** | Basic storefront — products, stock, cart, orders (no ratings yet) |
 # MAGIC | **2.1 Permissions** | Storefront comes online once the service principal has database access |
 # MAGIC | **3.1 Reverse ETL** | Sale badges, discount prices, "Spring Sale Deals" section appear |
-# MAGIC | **4.1 UC Registration** | Lakebase becomes queryable from any SQL warehouse via a UC foreign catalog |
-# MAGIC | **5.1 Lakehouse Sync** | Lakebase tables continuously mirror to Delta in Unity Catalog |
-# MAGIC | **6.1 Parallel Dev** | No storefront change — branches are isolated from production |
-# MAGIC | **6.2 Schema to Prod** | Star ratings, loyalty badges, "Earn pts" labels appear |
-# MAGIC | **6.3 Branch Reset** | Priority badges on orders, verified badge in navbar |
-# MAGIC | **7.1 PITR Disaster** | Orders page breaks → gracefully degrades → recovers after PITR |
+# MAGIC | **4.1 Lakehouse Sync** | Lakebase tables continuously mirror to Delta in Unity Catalog |
+# MAGIC | **5.1 Connect Apps** | Patterns for connecting applications to your Lakebase project |
+# MAGIC
+# MAGIC **Bonus labs** (`Bonus Labs - Advanced Lakebase Operations/` — optional, advanced Lakebase operations):
+# MAGIC
+# MAGIC | Bonus Lab | What Happens |
+# MAGIC |-----------|-------------|
+# MAGIC | **1.1 UC Registration** | Lakebase becomes queryable from any SQL warehouse via a UC foreign catalog |
+# MAGIC | **2.1 Parallel Dev** | No storefront change — branches are isolated from production |
+# MAGIC | **3.1 Schema to Prod** | Star ratings, loyalty badges, "Earn pts" labels appear |
+# MAGIC | **4.1 Branch Reset** | Priority badges on orders, verified badge in navbar |
+# MAGIC | **5.1 PITR Disaster** | Orders page breaks → gracefully degrades → recovers after PITR |
+# MAGIC | **6.1 Monitoring** | Observe Lakebase health and query activity via Postgres system views |
 # MAGIC
 # MAGIC > The storefront auto-detects schema changes every 30 seconds. No redeployment needed.
 # MAGIC

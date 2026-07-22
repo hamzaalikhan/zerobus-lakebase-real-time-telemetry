@@ -154,12 +154,12 @@ ecommerce.order_items  ── ~55 rows  (order_id, product_id, quantity, unit_pr
 
 | Table/Column | Added In | Purpose |
 |---|---|---|
-| `reviews` table | Lab 6.2 | Star ratings and customer comments |
-| `loyalty_points` column (customers) | Lab 6.2 | Points balance per customer |
-| `loyalty_members` table | Lab 6.2 | Tier enrollment (Bronze/Silver/Gold/Platinum) |
-| `exchange_rates` table | Lab 6.1 (branch only) | Currency conversion rates |
-| `email_verified` column (customers) | Lab 6.3 | Email verification status |
-| `priority` column (orders) | Lab 6.3 | Order priority (high/medium/normal) |
+| `reviews` table | Bonus Lab 3.1 | Star ratings and customer comments |
+| `loyalty_points` column (customers) | Bonus Lab 3.1 | Points balance per customer |
+| `loyalty_members` table | Bonus Lab 3.1 | Tier enrollment (Bronze/Silver/Gold/Platinum) |
+| `exchange_rates` table | Bonus Lab 2.1 (branch only) | Currency conversion rates |
+| `email_verified` column (customers) | Bonus Lab 4.1 | Email verification status |
+| `priority` column (orders) | Bonus Lab 4.1 | Order priority (high/medium/normal) |
 | `promotions` table (synced from UC) | Lab 3.1 | Sale badges, discount prices, Spring Sale deals |
 
 ### How Tables Map to the Storefront
@@ -168,36 +168,36 @@ ecommerce.order_items  ── ~55 rows  (order_id, product_id, quantity, unit_pr
 |-------|--------------------|
 | `products` | Product catalog with category icons, search, price filters |
 | `inventory` | Stock badges (In Stock / Low Stock / Out of Stock), checkout validation |
-| `reviews` | Star ratings on product cards, review comments on detail page (appears after Lab 6.2) |
+| `reviews` | Star ratings on product cards, review comments on detail page (appears after Bonus Lab 3.1) |
 | `customers` | Demo customer identity (Alice Smith), loyalty points, email verified status |
-| `orders` | Order history page, checkout. Priority badges after Lab 6.3 |
+| `orders` | Order history page, checkout. Priority badges after Bonus Lab 4.1 |
 | `order_items` | Order detail line items, "Best Sellers" homepage section |
-| `loyalty_members` | Tier badge in navbar, loyalty banner on homepage (appears after Lab 6.2) |
+| `loyalty_members` | Tier badge in navbar, loyalty banner on homepage (appears after Bonus Lab 3.1) |
 | `promotions` | Sale badges on product cards, strikethrough prices, "Spring Sale Deals" section (appears after Lab 3.1, synced from Unity Catalog) |
 
 ## Frontend Pages
 
 ### Home Page
 - **Spring Sale hero banner** (teal gradient) with product/category count
-- **Loyalty Program banner** (amber gradient) — appears after Lab 6.2
+- **Loyalty Program banner** (amber gradient) — appears after Bonus Lab 3.1
 - **Spring Sale Deals** section — promoted products with sale badges and discount prices (appears after Lab 3.1)
-- **Top Rated** products — appears after Lab 6.2 when reviews table exists
+- **Top Rated** products — appears after Bonus Lab 3.1 when reviews table exists
 - **Best Sellers** — sorted by units sold. Shows "temporarily unavailable" during PITR disaster
 
 ### Shop Page
 - Product grid with **category-specific icons and colored gradients**:
   - Electronics (Monitor / blue), Clothing (Shirt / purple), Books (BookOpen / amber), Home (Lamp / green), Sports (Dumbbell / red)
 - Category pill filters and search
-- Star ratings and review counts — appear after Lab 6.2
-- "Earn X pts" labels — appear after Lab 6.2
+- Star ratings and review counts — appear after Bonus Lab 3.1
+- "Earn X pts" labels — appear after Bonus Lab 3.1
 - **Sale badges** (e.g., "SPRING SALE -20%") on promoted product cards — appear after Lab 3.1
 - **Strikethrough prices** with sale prices for promoted products — appear after Lab 3.1
 - "Add to Cart" button (disabled when out of stock)
 
 ### Product Detail Page
 - Large category icon with colored gradient background
-- Star ratings + review count — appear after Lab 6.2
-- "Earn X loyalty points with this purchase" — appears after Lab 6.2
+- Star ratings + review count — appear after Bonus Lab 3.1
+- "Earn X loyalty points with this purchase" — appears after Bonus Lab 3.1
 - **Promotion alert** with badge, discount %, and sale price — appears after Lab 3.1
 - Customer reviews section with stars and comments
 - Stock badge with warehouse location
@@ -205,20 +205,20 @@ ecommerce.order_items  ── ~55 rows  (order_id, product_id, quantity, unit_pr
 ### Cart Page
 - Line items with quantity controls (+/-)
 - Stock validation (highlights out-of-stock items in red)
-- "You'll earn X loyalty points" summary — appears after Lab 6.2
+- "You'll earn X loyalty points" summary — appears after Bonus Lab 3.1
 - **Sale prices** for promoted items with original price shown — appears after Lab 3.1
 - Checkout error messaging during PITR disaster
 
 ### Orders Page
 - Order history with status badges (pending/confirmed/shipped/delivered/cancelled)
-- **Priority badges** (high=red, medium=amber, normal=gray) — appear after Lab 6.3
+- **Priority badges** (high=red, medium=amber, normal=gray) — appear after Bonus Lab 4.1
 - Full-page "Orders Service Unavailable" with "Continue Shopping" button during PITR disaster
 
 ### Navbar
 - DataCart brand (teal)
 - Navigation links (Home, Shop, Orders)
-- **Loyalty tier badge** + points count (amber) — appears after Lab 6.2
-- **Verified badge** (green) — appears after Lab 6.3
+- **Loyalty tier badge** + points count (amber) — appears after Bonus Lab 3.1
+- **Verified badge** (green) — appears after Bonus Lab 4.1
 - Cart icon with item count badge
 
 ## Design System
@@ -311,7 +311,7 @@ Key configuration:
 
 ## PITR Disaster Handling
 
-When Lab 7.1 runs `DROP TABLE orders CASCADE`, both `orders` and `order_items` are dropped (CASCADE FK). The storefront handles this gracefully:
+When Bonus Lab 5.1 runs `DROP TABLE orders CASCADE`, both `orders` and `order_items` are dropped (CASCADE FK). The storefront handles this gracefully:
 
 | Page | Behavior During Disaster |
 |------|-------------------------|
@@ -321,7 +321,7 @@ When Lab 7.1 runs `DROP TABLE orders CASCADE`, both `orders` and `order_items` a
 | **Cart** | Items visible but checkout shows "temporarily unavailable" error |
 | **Orders** | Full-page "Orders Service Unavailable" with "Continue Shopping" button |
 
-After PITR recovery, all features come back within 30 seconds (cache TTL). Priority badges may disappear since PITR restores the pre-Lab 6.3 schema. The post-recovery migration step in Lab 7.1 re-applies these columns.
+After PITR recovery, all features come back within 30 seconds (cache TTL). Priority badges may disappear since PITR restores the pre-Bonus Lab 4.1 schema. The post-recovery migration step in Bonus Lab 5.1 re-applies these columns.
 
 ### Tables That Survive the Disaster
 
@@ -358,7 +358,7 @@ ecommerce.promotions    ──sync──►  ecommerce.promotions_synced_prod �
 1. Marketing team creates/updates the `promotions` Delta table in Unity Catalog
 2. A Lakebase synced table pipeline copies the data to the `ecommerce` schema in Postgres
 3. **Re-grant SP permissions** — synced tables are created by the sync pipeline (a different
-   role), so `ALTER DEFAULT PRIVILEGES` from Lab 1.2 doesn't cover them. Run
+   role), so `ALTER DEFAULT PRIVILEGES` from Lab 2.1 doesn't cover them. Run
    `GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";` after the sync.
 4. The storefront's `schema_detector` detects the table within 30 seconds via
    `get_promotions_table()`, which checks for `promotions_synced_prod` first, then `promotions`
@@ -410,7 +410,7 @@ The app simulates a logged-in customer:
 - **Customer ID**: 1
 - **Email**: alice.smith.0@example.com
 
-All cart operations and order history are scoped to this customer. The cart is stored in-memory (resets on redeploy), while orders persist in the database. After Lab 6.2, Alice has a loyalty tier and points balance that updates when she places orders.
+All cart operations and order history are scoped to this customer. The cart is stored in-memory (resets on redeploy), while orders persist in the database. After Bonus Lab 3.1, Alice has a loyalty tier and points balance that updates when she places orders.
 
 ## Local Development
 

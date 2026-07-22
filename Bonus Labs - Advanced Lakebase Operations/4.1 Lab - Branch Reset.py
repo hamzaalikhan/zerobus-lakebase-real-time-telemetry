@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 6.3: Resetting a Branch to Parent State
+# MAGIC # Bonus Lab 4.1: Resetting a Branch to Parent State
 # MAGIC
 # MAGIC **The Challenge:**  
 # MAGIC You're developing a feature on a branch, but meanwhile another team pushes
@@ -476,9 +476,9 @@ print(f"\n🎉 Production has both teams' changes!")
 # MAGIC %md
 # MAGIC ## Cross-Flow Verification: Are the New Columns in UC?
 # MAGIC
-# MAGIC Same drill as Lab 6.2: confirm the schema additions made it to both UC paths.
+# MAGIC Same drill as Bonus Lab 3.1: confirm the schema additions made it to both UC paths.
 # MAGIC
-# MAGIC ### A. Foreign catalog (Lab 4.1) — `email_verified` and `priority` should be live
+# MAGIC ### A. Foreign catalog (Bonus Lab 1.1) — `email_verified` and `priority` should be live
 
 # COMMAND ----------
 
@@ -499,7 +499,7 @@ print(f"\n🎉 Production has both teams' changes!")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### B. Lakehouse Sync (Lab 5.1) — `email_verified` and `priority` should appear in Delta
+# MAGIC ### B. Lakehouse Sync (Lab 4.1) — `email_verified` and `priority` should appear in Delta
 
 # COMMAND ----------
 

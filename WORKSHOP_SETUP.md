@@ -10,8 +10,8 @@ labs start, so workshop time isn't burned on UI clicks.
 
 - **Databricks Workspace**: any workspace with Lakebase Autoscaling and Databricks Apps support
 - **Databricks CLI**: v0.229.0+ (only required if deploying via terminal — workspace-UI deploy needs no local CLI)
-- **Unity Catalog**: enabled in your workspace (required for Labs 4.1 and 5.1)
-- **A SQL warehouse**: needed for the federated queries in Lab 4.1 (any size)
+- **Unity Catalog**: enabled in your workspace (required for Bonus Lab 1.1 and Lab 4.1)
+- **A SQL warehouse**: needed for the federated queries in Bonus Lab 1.1 (any size)
 - **Workspace files** and **serverless compute** must be enabled in the workspace (admin settings) for the workspace-UI deploy flow to work
 
 > **Note:** the React frontend is pre-built and included in `frontend/dist/`. No Node.js or npm
@@ -142,10 +142,10 @@ Common causes:
 
 The bundle pins `root_path` to `${workspace.current_user.userName}`, so it auto-derives. If you see this error, your workspace might not have user-derived paths enabled — open `databricks.yml` and hardcode `root_path` to your `/Workspace/Users/<your-email>/.bundle/...` path.
 
-### The federated query in Lab 4.1 errors with "connection refused"
+### The federated query in Bonus Lab 1.1 errors with "connection refused"
 
 Foreign catalog connections require Lakehouse Federation to be enabled on your SQL warehouse. Use a serverless SQL warehouse if you don't have classic warehouses configured for federation.
 
-### The Lakehouse Sync option doesn't appear in the UI (Lab 5.1)
+### The Lakehouse Sync option doesn't appear in the UI (Lab 4.1)
 
 Lakehouse Sync is gated by region and feature flag — confirm the **Sync to Unity Catalog** option is visible on your project's page. If not, ask your Databricks contact to enable the feature on this workspace.

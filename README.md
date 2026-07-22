@@ -12,14 +12,21 @@ You will step into the role of a database engineer at DataCart, a rapidly growin
 | 1.1 | `1.1 Lab - Discover and Seed the Lakebase Project` | Lab | Discover the bundle-deployed project, OAuth connection, and e-commerce schema seeding (customers, products, orders) |
 | 2.1 | `2.1 Lab - Roles Permissions and Connect Storefront` | Lab | Workspace vs. database permission layers; grant the storefront's service principal access and bring it online |
 | 3.1 | `3.1 Lab - Reverse ETL with Synced Tables (UC to Lakebase)` | Lab | Create a promotions Delta table in Unity Catalog and sync it to Lakebase; sale badges appear on the storefront |
-| 4.1 | `4.1 Lab - Register Lakebase in Unity Catalog` | Lab | Register Lakebase as a UC foreign catalog and run a federated join of live OLTP × Delta marketing data |
-| 5.1 | `5.1 Lab - Lakehouse Sync (Lakebase to UC)` | Lab | Continuously mirror Lakebase tables to Delta in UC; run analytics with zero OLTP load |
-| 6.1 | `6.1 Lab - Parallel Development with Branching` | Lab | Three developers work in parallel on isolated branches (loyalty features, multi-currency support, performance indexes) |
-| 6.2 | `6.2 Lab - Schema Migration to Production` | Lab | Promote validated schema changes from a feature branch to production by replaying DDL; verify changes propagate to UC |
-| 6.3 | `6.3 Lab - Branch Reset` | Lab | Detect production drift, reset a branch to match parent state, and re-test migrations |
-| 7.1 | `7.1 Lab - Point in Time Recovery and Snapshots` | Lab | Simulate an accidental `DROP TABLE` and recover using PITR; observe federation and sync pipelines healing automatically |
-| 8 | `8 Lecture - Monitoring` | Lecture | How to monitor your Lakebase instance and interpret the metrics on the Lakebase monitoring page |
-| 9 | `9 Lecture - Connect Apps to Lakebase` | Lecture | How to connect external apps to Lakebase |
+| 4.1 | `4.1 Lab - Lakehouse Sync (Lakebase to UC)` | Lab | Continuously mirror Lakebase tables to Delta in UC; run analytics with zero OLTP load |
+| 5.1 | `5.1 Lecture - Connect Apps to Lakebase` | Lecture | How to connect external apps to Lakebase |
+
+## Bonus Labs — Advanced Lakebase Operations
+
+Located in `Bonus Labs - Advanced Lakebase Operations/`.
+
+| # | Notebook | Type | Description |
+|---|---|---|---|
+| Bonus 1.1 | `1.1 Lab - Register Lakebase in Unity Catalog` | Lab | Register Lakebase as a UC foreign catalog and run a federated join of live OLTP × Delta marketing data |
+| Bonus 2.1 | `2.1 Lab - Parallel Development with Branching` | Lab | Three developers work in parallel on isolated branches (loyalty features, multi-currency support, performance indexes) |
+| Bonus 3.1 | `3.1 Lab - Schema Migration to Production` | Lab | Promote validated schema changes from a feature branch to production by replaying DDL; verify changes propagate to UC |
+| Bonus 4.1 | `4.1 Lab - Branch Reset` | Lab | Detect production drift, reset a branch to match parent state, and re-test migrations |
+| Bonus 5.1 | `5.1 Lab - Point in Time Recovery and Snapshots` | Lab | Simulate an accidental `DROP TABLE` and recover using PITR; observe federation and sync pipelines healing automatically |
+| Bonus 6.1 | `6.1 Lecture - Monitoring` | Lecture | How to monitor your Lakebase instance and interpret the metrics on the Lakebase monitoring page |
 
 
 ## DataCart Storefront App
@@ -52,17 +59,17 @@ A customer-facing e-commerce web application (React + FastAPI) that **evolves in
 |---------|--------------|
 | Products, stock badges, cart, orders | Lab 1.1 + 2.1 |
 | Sale badges, discount prices, promo deals | Lab 3.1 |
-| (UC analytics surface lights up — no storefront change) | Lab 4.1 + 5.1 |
-| Star ratings, reviews | Lab 6.2 |
-| Loyalty tier badge, points, "Earn X pts" | Lab 6.2 |
-| Priority badges, verified badge | Lab 6.3 |
-| Graceful degradation during disaster | Lab 7.1 |
+| (UC analytics surface lights up — no storefront change) | Bonus Lab 1.1 (federation) + Lab 4.1 (Lakehouse Sync) |
+| Star ratings, reviews | Bonus Lab 3.1 |
+| Loyalty tier badge, points, "Earn X pts" | Bonus Lab 3.1 |
+| Priority badges, verified badge | Bonus Lab 4.1 |
+| Graceful degradation during disaster | Bonus Lab 5.1 |
 
 ### Prerequisites
 
 - Databricks workspace with Lakebase & Databricks Apps support
-- Unity Catalog enabled (required for Labs 4.1 and 5.1)
-- A SQL warehouse (any size) for the federated queries in Lab 4.1
+- Unity Catalog enabled (required for Bonus Lab 1.1 and Lab 4.1)
+- A SQL warehouse (any size) for the federated queries in Bonus Lab 1.1
 - Databricks CLI v0.229.0+ authenticated with a profile
 
 ## Setup Steps
@@ -200,7 +207,7 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 > table pipeline pushed the data to Lakebase. The storefront detected the new table and
 > rendered promotions. **Zero application code changes required.**
 
-### After Lab 4.1 — Register Lakebase in Unity Catalog
+### After Bonus Lab 1.1 — Register Lakebase in Unity Catalog
 
 **Database change:** A new UC foreign catalog `lakebase_datacart` is registered against the Lakebase production branch. A small `main.datacart_demo.marketing_campaigns` Delta table is created for the federated join scenario.
 
@@ -210,7 +217,7 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 
 **Storefront shows:** No change. The analytics surface gets the upgrade.
 
-### After Lab 5.1 — Lakehouse Sync (Lakebase to UC)
+### After Lab 4.1 — Lakehouse Sync (Lakebase to UC)
 
 **Database change:** A Lakehouse Sync pipeline continuously mirrors `orders`, `customers`, and `order_items` from Lakebase to Delta tables under `main.datacart_uc`.
 
@@ -220,16 +227,16 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 
 **Storefront shows:** No change. BI / ML consumers can now hit the lakehouse side.
 
-### After Lab 6.1 — Parallel Development
+### After Bonus Lab 2.1 — Parallel Development
 
 **Database:** No changes to production. Three feature branches are created:
 - `dev-loyalty-reviews` — loyalty_points column, loyalty_members table, and **reviews table**
 - `modify-orders` — exchange_rates table, currency FK migration
 - `add-index` — price index on products
 
-**Storefront shows:** No change — all work is on isolated branches. The synced flows from Labs 3.1 and 5.1 keep targeting production.
+**Storefront shows:** No change — all work is on isolated branches. The synced flows from Lab 3.1 and Lab 4.1 keep targeting production.
 
-### After Lab 6.2 — Schema Migration to Production
+### After Bonus Lab 3.1 — Schema Migration to Production
 
 **Database changes on production:**
 - `customers` table gets `loyalty_points` column (backfilled from order history)
@@ -246,9 +253,9 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 - **Cart** — "You'll earn X loyalty points" summary with tier badge
 - **Checkout** — Awards loyalty points after placing an order
 
-**UC also reflects the change:** the foreign catalog (Lab 4.1) sees the new column on the next query; Lakehouse Sync (Lab 5.1) propagates it to Delta on the next sync cycle.
+**UC also reflects the change:** the foreign catalog (Bonus Lab 1.1) sees the new column on the next query; Lakehouse Sync (Lab 4.1) propagates it to Delta on the next sync cycle.
 
-### After Lab 6.3 — Branch Reset
+### After Bonus Lab 4.1 — Branch Reset
 
 **Database changes on production:**
 - `customers` table gets `email_verified` BOOLEAN column (~1/3 verified)
@@ -258,9 +265,9 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 - **Navbar** — Green "Verified" badge appears next to the loyalty tier
 - **Orders page** — Each order now shows a priority badge (high = red, medium = amber, normal = gray)
 
-**UC also reflects the change:** federation and sync both pick up the new columns, same pattern as 6.2.
+**UC also reflects the change:** federation and sync both pick up the new columns, same pattern as Bonus Lab 3.1.
 
-### During Lab 7.1 — PITR (The Disaster)
+### During Bonus Lab 5.1 — PITR (The Disaster)
 
 **Database change:** `DROP TABLE orders CASCADE` — drops both `orders` and `order_items`. Tables that **survive**: customers, products, inventory, reviews, loyalty_members.
 
@@ -282,7 +289,7 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 > even though orders are gone. This is what real customers would experience. The downstream
 > data flows respond honestly: federation breaks (live read), sync stalls (last replica still queryable in Delta).
 
-### After Lab 7.1 — PITR Recovery
+### After Bonus Lab 5.1 — PITR Recovery
 
 **Database change:** Orders table recreated from PITR branch, data restored.
 
@@ -290,13 +297,13 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 - Orders page is back with full order history
 - Best Sellers works again
 - Checkout is functional again
-- **Priority badges are gone** — PITR restored to a point before Lab 6.3
+- **Priority badges are gone** — PITR restored to a point before Bonus Lab 4.1
 
 **UC also recovers:** the foreign catalog query works again immediately; the Lakehouse Sync pipeline resumes (or one click to "Resume" if it gave up).
 
-### After Lab 7.1 — Post-Recovery Migrations
+### After Bonus Lab 5.1 — Post-Recovery Migrations
 
-**Database change:** Lab 6.3 migrations re-applied (email_verified + priority columns).
+**Database change:** Bonus Lab 4.1 migrations re-applied (email_verified + priority columns).
 
 **Storefront shows (full restore):**
 - Priority badges are back on the Orders page
@@ -332,11 +339,11 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
   `ALTER DEFAULT PRIVILEGES` doesn't apply to them.
 - The storefront checks for both `promotions_synced_prod` and `promotions` table names.
 
-### Federated query errors with "connection refused" (Lab 4.1)
+### Federated query errors with "connection refused" (Bonus Lab 1.1)
 - Foreign catalog connections require Lakehouse Federation to be enabled on your SQL warehouse.
 - Use a serverless SQL warehouse if you don't have classic warehouses configured for federation.
 
-### Lakehouse Sync option not visible in the UI (Lab 5.1)
+### Lakehouse Sync option not visible in the UI (Lab 4.1)
 - Lakehouse Sync is gated by region and feature flag — confirm the **Sync to Unity Catalog** option
   is visible on your project's page. If not, ask your Databricks contact to enable the feature on
   this workspace.

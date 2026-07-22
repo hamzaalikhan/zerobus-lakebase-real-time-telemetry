@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 5.1: Lakehouse Sync — Lakebase to Unity Catalog
+# MAGIC # Lab 4.1: Lakehouse Sync — Lakebase to Unity Catalog
 # MAGIC
 # MAGIC ---
 # MAGIC
@@ -12,8 +12,8 @@
 # MAGIC | Direction | Lab | Mechanism | Best for |
 # MAGIC |---|---|---|---|
 # MAGIC | UC → Lakebase | 3.1 | Synced Tables | Serving Lakehouse data to apps |
-# MAGIC | Live read-through | 4.1 | UC foreign catalog (federation) | Ad-hoc joins, governed reads |
-# MAGIC | **Lakebase → UC** | **5.1 (this lab)** | **Lakehouse Sync** | **High-throughput analytics on OLTP data** |
+# MAGIC | Live read-through | Bonus Lab 1.1 | UC foreign catalog (federation) | Ad-hoc joins, governed reads |
+# MAGIC | **Lakebase → UC** | **4.1 (this lab)** | **Lakehouse Sync** | **High-throughput analytics on OLTP data** |
 # MAGIC
 # MAGIC In this lab you'll set up Lakehouse Sync so the live `orders`, `customers`, and `order_items`
 # MAGIC tables in Lakebase are continuously mirrored as Delta tables in Unity Catalog. Once that's
@@ -25,7 +25,7 @@
 # MAGIC
 # MAGIC By the end of this lab, you will be able to:
 # MAGIC 1. **Explain** what Lakehouse Sync is and how it complements Synced Tables (Lab 3.1) and
-# MAGIC    federation (Lab 4.1)
+# MAGIC    federation (Bonus Lab 1.1)
 # MAGIC 2. **Create** a Lakehouse Sync configuration that mirrors Lakebase tables to UC Delta
 # MAGIC 3. **Trigger** the initial snapshot and verify Delta tables appear in UC
 # MAGIC 4. **Demonstrate** end-to-end propagation by inserting a row in Lakebase and observing it in Delta
@@ -40,7 +40,7 @@
 # MAGIC %md-sandbox
 # MAGIC ## Concept: Why Sync OLTP into Delta?
 # MAGIC
-# MAGIC Federation (Lab 4.1) is great for **live, low-volume** queries. But if a BI dashboard scans
+# MAGIC Federation (Bonus Lab 1.1) is great for **live, low-volume** queries. But if a BI dashboard scans
 # MAGIC every order from the last 30 days and you have a million orders, federation will:
 # MAGIC
 # MAGIC - Saturate the Lakebase compute (which is also serving the storefront)
@@ -214,7 +214,7 @@ owner_conn.close()
 # MAGIC %md
 # MAGIC ## What Happens When Lakebase Schemas Change?
 # MAGIC
-# MAGIC In Labs 6.2 (Schema Migration) and 6.3 (Branch Reset) you'll add new columns to `customers`
+# MAGIC In Bonus Labs 3.1 (Schema Migration) and 4.1 (Branch Reset) you'll add new columns to `customers`
 # MAGIC and `orders` on the Lakebase side. Lakehouse Sync handles schema evolution:
 # MAGIC
 # MAGIC - **New columns** appear in the Delta tables on the next sync cycle.
@@ -222,11 +222,11 @@ owner_conn.close()
 # MAGIC - **Renamed columns** are treated as drop + add; rename through migration tooling explicitly
 # MAGIC   to avoid that.
 # MAGIC
-# MAGIC In Lab 6.2, after applying the migration, come back and re-query the synced `customers` table
+# MAGIC In Bonus Lab 3.1, after applying the migration, come back and re-query the synced `customers` table
 # MAGIC under `<your-catalog>.datacart_uc` — the new `loyalty_points` column will appear in Delta with
 # MAGIC no extra work on your side.
 # MAGIC
-# MAGIC In Lab 7.1 (PITR), if you DROP `orders` on Lakebase, the sync pipeline pauses and reports an
+# MAGIC In Bonus Lab 5.1 (PITR), if you DROP `orders` on Lakebase, the sync pipeline pauses and reports an
 # MAGIC error. After PITR recovery, restart the pipeline if it gave up. The Delta side stays
 # MAGIC consistent with the post-recovery Lakebase state.
 
@@ -257,7 +257,7 @@ owner_conn.close()
 # MAGIC - You ran a customer-LTV aggregation against Delta — exactly the workload you don't want
 # MAGIC   running directly on the OLTP database.
 # MAGIC - You now have a complete picture of all three Lakebase ↔ Lakehouse data movements:
-# MAGIC   inbound (Synced Tables, Lab 3.1), live (Federation, Lab 4.1), outbound (this lab).
+# MAGIC   inbound (Synced Tables, Lab 3.1), live (Federation, Bonus Lab 1.1), outbound (this lab).
 # MAGIC
 # MAGIC With those three primitives in your toolkit, the rest of the workshop (branching, schema
 # MAGIC migration, PITR) is about safely *evolving* the OLTP side while these data flows continue

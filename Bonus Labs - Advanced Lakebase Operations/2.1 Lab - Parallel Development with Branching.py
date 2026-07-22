@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 6.1: Parallel Development with Branching
+# MAGIC # Bonus Lab 2.1: Parallel Development with Branching
 # MAGIC
 # MAGIC ---
 # MAGIC
@@ -12,7 +12,7 @@
 # MAGIC > **Cross-flow note.** When you create a dev branch, it gets a *point-in-time copy* of every
 # MAGIC > table on its parent — including any synced tables (like `promotions_synced_prod` from Lab 3.1).
 # MAGIC > That copy is **static**: the Synced Tables pipeline (Lab 3.1) and the Lakehouse Sync pipeline
-# MAGIC > (Lab 5.1) both target the **production** branch. Dev branches are sandboxes; downstream
+# MAGIC > (Lab 4.1) both target the **production** branch. Dev branches are sandboxes; downstream
 # MAGIC > sync flows continue to reflect production state.
 # MAGIC
 # MAGIC ## Learning Objectives
@@ -519,7 +519,7 @@ conn_loyalty.close()
 # MAGIC ### Task A-4: Seed Product Reviews on the Branch
 # MAGIC
 # MAGIC Developer A also seeds customer reviews collected from beta testers. These reviews
-# MAGIC will be promoted to production along with the loyalty features in Lab 6.2 — giving
+# MAGIC will be promoted to production along with the loyalty features in Bonus Lab 3.1 — giving
 # MAGIC the storefront star ratings and customer feedback.
 
 # COMMAND ----------
@@ -923,4 +923,4 @@ print("=" * 60)
 # MAGIC - **Schema isolation** — breaking changes on one branch don't affect production or other branches
 # MAGIC - **Per-developer setup** — the branching strategy pattern in action
 # MAGIC
-# MAGIC **Next:** In Lab 6.2, we'll promote Developer A's changes to production using the **Migration Replay** pattern, and explore the **Schema Diff** tool.
+# MAGIC **Next:** In Bonus Lab 3.1, we'll promote Developer A's changes to production using the **Migration Replay** pattern, and explore the **Schema Diff** tool.

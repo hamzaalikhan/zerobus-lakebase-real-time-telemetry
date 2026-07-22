@@ -1,14 +1,14 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 6.2: Schema Changes — Feature Branch to Production
+# MAGIC # Bonus Lab 3.1: Schema Changes — Feature Branch to Production
 # MAGIC
-# MAGIC In Lab 6.1, we created a feature branch `dev-loyalty-reviews`, added the `loyalty_points` column to the `customers` table, created new `loyalty_members` and `reviews` tables. Now we'll promote those changes to production using the **Migration Replay** pattern.
+# MAGIC In Bonus Lab 2.1, we created a feature branch `dev-loyalty-reviews`, added the `loyalty_points` column to the `customers` table, created new `loyalty_members` and `reviews` tables. Now we'll promote those changes to production using the **Migration Replay** pattern.
 # MAGIC
 # MAGIC > **Cross-flow note.** When this migration lands on production, two downstream surfaces pick
 # MAGIC > the changes up automatically:
-# MAGIC > 1. The **UC foreign catalog** from Lab 4.1 starts seeing the new column / tables on the next
+# MAGIC > 1. The **UC foreign catalog** from Bonus Lab 1.1 starts seeing the new column / tables on the next
 # MAGIC >    query — federation reads live, so there is no propagation delay.
-# MAGIC > 2. The **Lakehouse Sync** pipeline from Lab 5.1 evolves the Delta target schema on its next
+# MAGIC > 2. The **Lakehouse Sync** pipeline from Lab 4.1 evolves the Delta target schema on its next
 # MAGIC >    sync cycle.
 # MAGIC
 # MAGIC This lab also introduces two important branch management features: **Schema Diff** for comparing branches before migration, and **Branch Reset** for refreshing branches from their parent.
@@ -583,4 +583,4 @@ print(f"✅ Seeded {len(reviews)} product reviews on production!")
 # MAGIC - **Branch Reset** — how to refresh a child branch with the latest parent data (complete overwrite, not a merge)
 # MAGIC - **Migration Replay** — the pattern of testing DDL on a branch and replaying it on production
 # MAGIC
-# MAGIC **Next:** In Lab 6.3, we'll explore **Branch Reset** hands-on, and in Lab 7.1, **Point-in-Time Recovery**.
+# MAGIC **Next:** In Bonus Lab 4.1, we'll explore **Branch Reset** hands-on, and in Bonus Lab 5.1, **Point-in-Time Recovery**.
