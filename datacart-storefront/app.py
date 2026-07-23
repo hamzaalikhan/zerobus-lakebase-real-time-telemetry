@@ -28,12 +28,15 @@ async def lifespan(app):
 
 app = FastAPI(title="DataCart Storefront", lifespan=lifespan)
 
-from server.routes import shop, cart, orders, account  # noqa: E402
+from server.routes import shop, cart, orders, account, supplier  # noqa: E402
 
 app.include_router(shop.router, prefix="/api")
 app.include_router(cart.router, prefix="/api")
 app.include_router(orders.router, prefix="/api")
 app.include_router(account.router, prefix="/api")
+# Supplier view defines its own full paths (/supplier, /api/supplier/*), so it
+# is included without a prefix — and before the SPA catch-all mount below.
+app.include_router(supplier.router)
 
 
 @app.get("/api/health")

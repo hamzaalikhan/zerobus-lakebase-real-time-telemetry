@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from server.db import pool, DB_SCHEMA
 from server.schema_detector import column_exists, table_exists, get_promotions_table
+from server import events
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +144,9 @@ def add_to_cart(item: CartItem):
     cart = _carts.setdefault(DEMO_CUSTOMER_ID, {})
     current_qty = cart.get(item.product_id, 0)
     cart[item.product_id] = current_qty + item.quantity
+
+    # Collect: shopper added this product to the cart. Feeds the Supplier View.
+    events.record_event(events.ADD_TO_CART, item.product_id)
 
     return {"message": f"Added {item.quantity}x {row[1]} to cart", "cart_quantity": cart[item.product_id]}
 

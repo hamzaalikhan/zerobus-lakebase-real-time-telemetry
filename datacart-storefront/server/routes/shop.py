@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query, HTTPException
 from server.db import pool, DB_SCHEMA
 from server.schema_detector import table_exists, column_exists, get_promotions_table
+from server import events
 
 router = APIRouter(prefix="/shop")
 
@@ -190,6 +191,9 @@ def get_product(product_id: int):
                 product["badge_text"] = promo["badge_text"]
                 product["discount_pct"] = promo["discount_pct"]
                 product["sale_price"] = promo["sale_price"]
+
+    # Collect: a shopper viewed this product. Feeds the Supplier Demand View.
+    events.record_event(events.VIEW, product_id)
 
     return {"product": product, "reviews": reviews}
 
