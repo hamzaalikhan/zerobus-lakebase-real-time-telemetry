@@ -8,3 +8,4 @@ resources:
         autoscaling_limit_min_cu: 0.5
         autoscaling_limit_max_cu: 2
         suspend_timeout_duration: 300s
+      purge_on_delete: true
