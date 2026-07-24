@@ -88,8 +88,7 @@
 # MAGIC
 # MAGIC | Lab | What Happens |
 # MAGIC |-----|-------------|
-# MAGIC | **1.1 Setup** | Basic storefront — products, stock, cart, orders (no ratings yet) |
-# MAGIC | **2.1 Permissions** | Storefront comes online once the service principal has database access |
+# MAGIC | **1.1 Setup & Connect** | Seed the schema and grant the service principal access — the storefront comes online with products, stock, cart, and orders |
 # MAGIC | **3.1 Reverse ETL** | Sale badges, discount prices, "Spring Sale Deals" section appear |
 # MAGIC | **4.1 Lakehouse Sync** | Lakebase tables continuously mirror to Delta in Unity Catalog |
 # MAGIC | **5.1 Connect Apps** | Patterns for connecting applications to your Lakebase project |

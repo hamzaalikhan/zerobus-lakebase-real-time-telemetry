@@ -250,7 +250,7 @@ w = WorkspaceClient()
 
 # Bundle-deployed Lakebase project (datacart-storefront/databricks.yml)
 # Project name is auto-derived per user from ${workspace.current_user.id}
-project_name = f"lakebase-workshop-{w.current_user.me().id}"
+project_name = f"zerobus-lakebase-{w.current_user.me().id}"
 db_user = w.current_user.me().user_name
 
 # Unity Catalog configuration — set the catalog before running
@@ -468,7 +468,7 @@ display(spark.sql(f"""
 # MAGIC 5. In the dialog:
 # MAGIC    - **Table name**: input **promotions_synced_prod**
 # MAGIC    - **Database type**: Select **Lakebase Serverless (Autoscaling)**
-# MAGIC    - **Project**: Select your workshop project (`lakebase-workshop-<FirstName>-<LastName>`)
+# MAGIC    - **Project**: Select your workshop project (`zerobus-lakebase-<FirstName>-<LastName>`)
 # MAGIC    - **Branch**: Select **production**
 # MAGIC    - **Sync mode**: Select **Snapshot** (full copy, simplest for demo)
 # MAGIC    - **Primary key**: Verify `id` is selected
@@ -512,7 +512,7 @@ display(spark.sql(f"""
 # MAGIC data "databricks_current_user" "me" {}
 # MAGIC
 # MAGIC locals {
-# MAGIC   project_id     = "lakebase-workshop-${data.databricks_current_user.me.id}"
+# MAGIC   project_id     = "zerobus-lakebase-${data.databricks_current_user.me.id}"
 # MAGIC   production_arn = "projects/${local.project_id}/branches/production"
 # MAGIC }
 # MAGIC

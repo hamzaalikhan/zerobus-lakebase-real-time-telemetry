@@ -45,7 +45,6 @@ datacart-storefront/
 ├── main.py                   # Import wrapper
 ├── pyproject.toml            # Python project config
 ├── requirements.txt          # Deployment dependencies
-├── setup_sp_roles_notebook.py # Notebook to grant SP Postgres permissions
 ├── server/
 │   ├── config.py             # Dual-mode auth (local vs deployed)
 │   ├── db.py                 # Lakebase connection pool + OAuth
@@ -262,20 +261,23 @@ add the Lakebase project as a database resource in the app settings:
 2. The service principal's Postgres role is auto-created through the Lakebase OAuth system
 3. The app's `OAuthConnection` class generates fresh tokens via `generate_database_credential`
 
-This is configured in `app.yaml`:
+This is configured declaratively in `resources/datacart_storefront.app.yml`:
 ```yaml
 resources:
   - name: postgres
-    type: postgres
+    postgres:
+      branch: projects/${var.project_id}/branches/production
+      database: projects/${var.project_id}/branches/production/databases/databricks-postgres
+      permission: CAN_CONNECT_AND_CREATE
 ```
 
 > **Important**: Do NOT manually create the SP's Postgres role with `CREATE ROLE`.
 > Manually-created roles are not linked to the Lakebase OAuth authentication system and
-> will fail with "password authentication failed". Always use the app resource mechanism
-> to create the role automatically.
+> will fail with "password authentication failed". The resource binding above creates the
+> role automatically.
 
-After adding the resource, you still need to grant the SP permissions on the `ecommerce`
-schema (see `setup_sp_roles_notebook.py`).
+The binding grants the SP `CONNECT` + `CREATE` on the database, but not schema-level access.
+Lab 1.1 grants the SP `USAGE` + `ALL` on the `ecommerce` schema so the storefront can serve data.
 
 ### Dual-Mode Auth (`server/config.py`)
 
@@ -358,7 +360,7 @@ ecommerce.promotions    ──sync──►  ecommerce.promotions_synced_prod �
 1. Marketing team creates/updates the `promotions` Delta table in Unity Catalog
 2. A Lakebase synced table pipeline copies the data to the `ecommerce` schema in Postgres
 3. **Re-grant SP permissions** — synced tables are created by the sync pipeline (a different
-   role), so `ALTER DEFAULT PRIVILEGES` from Lab 2.1 doesn't cover them. Run
+   role), so `ALTER DEFAULT PRIVILEGES` from Lab 1.1 doesn't cover them. Run
    `GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";` after the sync.
 4. The storefront's `schema_detector` detects the table within 30 seconds via
    `get_promotions_table()`, which checks for `promotions_synced_prod` first, then `promotions`

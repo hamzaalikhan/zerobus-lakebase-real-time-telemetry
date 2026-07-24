@@ -9,8 +9,7 @@ You will step into the role of a database engineer at DataCart, a rapidly growin
 | # | Notebook | Type | Description |
 |---|---|---|---|
 | 0 | `0 Workshop Introduction` | Lecture | Workshop overview, Lakebase architecture, and the DataCart scenario |
-| 1.1 | `1.1 Lab - Discover and Seed the Lakebase Project` | Lab | Discover the bundle-deployed project, OAuth connection, and e-commerce schema seeding (customers, products, orders) |
-| 2.1 | `2.1 Lab - Roles Permissions and Connect Storefront` | Lab | Workspace vs. database permission layers; grant the storefront's service principal access and bring it online |
+| 1.1 | `1.1 Lab - Setup Lakebase and Connect the Storefront` | Lab | Discover the bundle-deployed project, connect via OAuth, seed the e-commerce schema, and grant the storefront's service principal access to bring it online |
 | 3.1 | `3.1 Lab - Reverse ETL with Synced Tables (UC to Lakebase)` | Lab | Create a promotions Delta table in Unity Catalog and sync it to Lakebase; sale badges appear on the storefront |
 | 4.1 | `4.1 Lab - Lakehouse Sync (Lakebase to UC)` | Lab | Continuously mirror Lakebase tables to Delta in UC; run analytics with zero OLTP load |
 | 5.1 | `5.1 Lecture - Connect Apps to Lakebase` | Lecture | How to connect external apps to Lakebase |
@@ -57,7 +56,7 @@ A customer-facing e-commerce web application (React + FastAPI) that **evolves in
 
 | Feature | Appears After |
 |---------|--------------|
-| Products, stock badges, cart, orders | Lab 1.1 + 2.1 |
+| Products, stock badges, cart, orders | Lab 1.1 |
 | Sale badges, discount prices, promo deals | Lab 3.1 |
 | (UC analytics surface lights up — no storefront change) | Bonus Lab 1.1 (federation) + Lab 4.1 (Lakehouse Sync) |
 | Star ratings, reviews | Bonus Lab 3.1 |
@@ -81,14 +80,14 @@ The `datacart-storefront/` folder is a Declarative Automation Bundle. A single `
 - The **Lakebase Autoscaling project** (declared as a native `postgres_projects` DAB resource — see [docs](https://docs.databricks.com/aws/en/oltp/projects/manage-with-bundles))
   - Configured for cost efficiency: **0.5–2 CU autoscaling** with **300s scale-to-zero** timeout
   - PG 17, 7-day PITR retention window
-  - Project ID auto-derived from the deploying user's workspace ID (e.g. `lakebase-workshop-6530815146371371`) so multiple attendees can deploy into one workspace without colliding
+  - Project ID auto-derived from the deploying user's workspace ID (e.g. `zerobus-lakebase-6530815146371371`) so multiple attendees can deploy into one workspace without colliding
 - The **DataCart Storefront app** (`storefront-<your-user-id>`)
   - App name auto-derived from the deploying user's workspace ID (e.g. `storefront-6530815146371371`) so multiple attendees can deploy into one workspace without colliding
   - Description shows the deployer's full name in the Apps list UI, mirroring how the Lakebase project's `display_name` works
   - Source code path points at the bundle's workspace upload location (`${workspace.file_path}`)
-  - Connection details discovered at runtime in `server/db.py` using the deployer's identity
+  - **Bound to the Lakebase project** as a native app resource (`postgres` binding with `CAN_CONNECT_AND_CREATE`), which auto-creates the app's service principal Postgres login role and injects `PGHOST`/`PGUSER`/`PGDATABASE`/etc. at runtime
 
-> **Why runtime discovery?** Lakebase Autoscaling doesn't have native Databricks Apps binding yet (it's on the roadmap). At startup the app reads its own `creator` field from the Apps API, looks up the deployer's user ID, and resolves the project name `lakebase-workshop-<deployer-id>`. Each app finds its own deployer's project deterministically — see `datacart-storefront/server/db.py`.
+> **Single source of truth:** the project slug and endpoint path are defined once as bundle `variables` (`project_id`, `endpoint_name`) in `databricks.yml` and referenced by the `postgres_projects` resource, the app's Lakebase binding, and the app's `ENDPOINT_NAME` env var. The app reads connection details from the injected env vars and mints short-lived OAuth DB tokens via `generate_database_credential` (Lakebase tokens expire hourly, so there is no static password) — see `datacart-storefront/server/db.py`.
 
 The target's `root_path` is also derived from `${workspace.current_user.userName}`, so each attendee gets their own bundle deploy path with **zero manual configuration**.
 
@@ -120,7 +119,7 @@ Clicking ▶ run on the app in the Bundle resources pane only **starts the compu
 /Workspace/Users/<your-email>/.bundle/datacart-storefront-data-centric/dev/files
 ```
 
-Click Deploy. After source deployment, the app status moves to `RUNNING` and the URL becomes accessible. The app will show "Loading…" until you grant the service principal database access in Lab 2.1.
+Click Deploy. After source deployment, the app status moves to `RUNNING` and the URL becomes accessible. The app will show "Loading…" until you grant the service principal database access in Lab 1.1.
 
 #### Alternative: Deploy from your local terminal (CLI)
 
@@ -149,34 +148,33 @@ databricks bundle run datacart_storefront --profile <your-profile>
 
 If you can't or don't want to use DABs at all (e.g., your workspace doesn't support the workspace deploy flow and you don't have the CLI), open the **`Optional - Create Lakebase Project (SDK).py`** notebook in this folder. The notebook handles almost everything the bundle does, via the Databricks SDK:
 
-1. Creates the Lakebase Autoscaling project (`lakebase-workshop-<your-user-id>` — same name pattern as the bundle).
+1. Creates the Lakebase Autoscaling project (`zerobus-lakebase-<your-user-id>` — same name pattern as the bundle).
 2. Verifies the default `production` branch and compute endpoint are ready.
 3. Creates the storefront app (`storefront-<your-user-id>`) **with the Lakebase project pre-attached as a database resource**, so the platform auto-injects `PGHOST` / `PGUSER` / `PGPORT` / `PGDATABASE` env vars on the next source deploy.
 
 The **only** step left for you afterwards is pointing the app at the source code and clicking **Deploy** in the workspace UI — instructions are in the notebook's final cell. Once that's done, all the regular labs (1.1 onward) work the same way as the DAB path because they discover the project and app by name.
 
-### Step 2: Run Lab 1.1 to seed the schema
+### Step 2: Run Lab 1.1 to set up and connect
 
-Open **`1.1 Lab - Discover and Seed the Lakebase Project`** in the workspace. This:
+Open **`1.1 Lab - Setup Lakebase and Connect the Storefront`** in the workspace. This one lab:
 
-1. Discovers the bundle-deployed Lakebase project (`lakebase-workshop-<FirstName>-<LastName>`)
-2. Seeds 5 tables: customers, products, inventory, orders, order_items
-3. Tours `pg_catalog`, `information_schema`, and `pg_stat_statements`
+1. Discovers the bundle-deployed Lakebase project (`zerobus-lakebase-<your-user-id>`)
+2. Connects via OAuth and seeds 5 tables: customers, products, inventory, orders, order_items
+3. Grants the storefront app's service principal access to the `ecommerce` schema
 
-### Step 3: Run Lab 2.1 to grant SP permissions
+The storefront shows "Loading…" until the grant in the final step, then populates with products
+and a working cart.
 
-Open **`2.1 Lab - Roles Permissions and Connect Storefront`**. The storefront will show "Loading…" until this lab grants the app's service principal access to the `ecommerce` schema. Once complete, the storefront populates with products and a working cart.
+### Step 3: Go through the rest of the workshop!
 
-### Step 4: Go through the rest of the workshop!
-
-Run the remaining labs in order: 3.1 → 4.1 → 5.1 → 6.1 → 6.2 → 6.3 → 7.1 → 8 → 9.
+Run the remaining labs in order: 3.1 → 4.1 → 5.1, plus the bonus labs.
 
 
 ## Workshop Flow — Storefront Evolution
 
 The storefront **auto-detects schema changes** every 30 seconds. No redeployment is needed — just run the lab and refresh the browser.
 
-### After 1.1 Lab - Setup & 2.1 Lab - Connect Storefront to Lakebase
+### After Lab 1.1 — Setup & Connect the Storefront
 
 **Database:** 5 tables (customers, products, inventory, orders, order_items). No reviews yet.
 
@@ -191,7 +189,7 @@ The storefront **auto-detects schema changes** every 30 seconds. No redeployment
 
 **Database change:** A `promotions` Delta table is created in Unity Catalog and synced to Lakebase via a synced table pipeline. First synced to a `dev-promotions` branch for validation, then promoted to the `production` branch. The synced table appears as `promotions_synced_prod` (or `promotions`) in the `ecommerce` Postgres schema.
 
-**Important — SP permissions for synced tables:** After the sync completes, you must re-grant the app SP access to the new table. Synced tables are created by the Lakebase sync pipeline (a different internal role), so `ALTER DEFAULT PRIVILEGES` from Lab 2.1 does **not** cover them. Lab 3.1 Step 7 handles this with:
+**Important — SP permissions for synced tables:** After the sync completes, you must re-grant the app SP access to the new table. Synced tables are created by the Lakebase sync pipeline (a different internal role), so `ALTER DEFAULT PRIVILEGES` from Lab 1.1 does **not** cover them. Lab 3.1 Step 7 handles this with:
 ```sql
 GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 ```
@@ -318,19 +316,19 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 
 ### "Store Unavailable" error on homepage
 - The Lakebase endpoint may be suspended (scale-to-zero). Wait 10-20 seconds and refresh.
-- Check that the ecommerce schema exists (run `1.1 Lab - Discover and Seed the Lakebase Project` first).
+- Check that the ecommerce schema exists (run `1.1 Lab - Setup Lakebase and Connect the Storefront` first).
 
 ### "Loading..." forever
 - Hit `<app-url>/api/dbtest` to check connectivity.
 - If `PGHOST` shows `NOT SET`: the app was **not bound to the Lakebase project**. Open the app's
-  Resources tab and confirm the binding to your Lakebase project (`lakebase-workshop-<FirstName>-<LastName>`), then click **Deploy** to restart.
+  Resources tab and confirm the binding to your Lakebase project (`zerobus-lakebase-<FirstName>-<LastName>`), then click **Deploy** to restart.
 - If `db_connected: false` with "password authentication failed": the database resource
   was not added, or the SP role was not auto-created. Re-bind the resource and redeploy.
-- If `db_connected: true` with `schema_error`: the SP needs schema grants — run Lab 2.1.
+- If `db_connected: true` with `schema_error`: the SP needs schema grants — run Lab 1.1.
 
 ### 500 errors on product pages
 - Check app logs at `<app-url>/logz`
-- Verify the SP has PostgreSQL roles on the ecommerce schema (Lab 2.1)
+- Verify the SP has PostgreSQL roles on the ecommerce schema (Lab 1.1)
 
 ### Spring Sale Deals section not appearing (after Lab 3.1)
 - Check `/api/features` — if `promotions_active` is `false`, the SP can't see the synced table.

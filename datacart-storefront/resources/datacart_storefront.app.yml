@@ -4,6 +4,28 @@ resources:
       name: "storefront-${workspace.current_user.id}"
       description: "DataCart Storefront — ${workspace.current_user.name.givenName} ${workspace.current_user.name.familyName}"
       source_code_path: ${workspace.file_path}
+      # Native Lakebase binding: the Apps platform auto-creates a Postgres login
+      # role for this app's service principal and grants it CONNECT/CREATE, then
+      # injects PGHOST/PGPORT/PGUSER/PGDATABASE/PGSSLMODE at runtime. This removes
+      # the "password authentication failed" dead-end — no manual SP role setup.
+      # (Schema-level grants on `ecommerce` are still done in Lab 2.1.)
+      resources:
+        - name: postgres
+          postgres:
+            branch: projects/${var.project_id}/branches/production
+            database: projects/${var.project_id}/branches/production/databases/databricks-postgres
+            permission: CAN_CONNECT_AND_CREATE
+      # The binding injects PGHOST/PGUSER/PGDATABASE/etc. It does NOT inject the
+      # endpoint resource path, which the app needs to mint short-lived OAuth DB
+      # tokens (generate_database_credential) — tokens expire hourly, so this is
+      # supplied as config, not a static password. DB_SCHEMA names the workshop
+      # schema the storefront reads/writes.
+      config:
+        env:
+          - name: ENDPOINT_NAME
+            value: ${var.endpoint_name}
+          - name: DB_SCHEMA
+            value: ecommerce
       # Bring the app up as part of `bundle deploy` — no separate `bundle run`.
       # `lifecycle.started` is only supported for apps/clusters/sql_warehouses
       # under the direct deployment engine (see bundle.engine: direct).

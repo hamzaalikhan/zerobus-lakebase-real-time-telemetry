@@ -23,18 +23,23 @@ labs start, so workshop time isn't burned on UI clicks.
 datacart-storefront/                  ← bundle root (databricks.yml)
 ├── databricks.yml                    →  bundle target + workspace path
 └── resources/
-    ├── lakebase_instance.yml         →  postgres_projects: lakebase-workshop-<your-user-id>
+    ├── lakebase_instance.yml         →  postgres_projects: zerobus-lakebase-<your-user-id>
     │                                       (0.5–2 CU autoscaling, 300s scale-to-zero, PG 17)
     └── datacart_storefront.app.yml   →  Databricks App: storefront-<your-user-id>
-                                          (env vars LAKEBASE_PROJECT, ENDPOINT_NAME, DB_SCHEMA)
+                                          (Lakebase `postgres` binding + env ENDPOINT_NAME, DB_SCHEMA)
 ```
 
+The project slug and endpoint path are defined once as bundle `variables` (`project_id`,
+`endpoint_name`) in `databricks.yml` and referenced by the `postgres_projects` resource, the app's
+Lakebase binding, and the app's `ENDPOINT_NAME` env var.
+
 `bundle deploy` provisions the Lakebase Autoscaling project AND uploads the app source files in
-one step. The bundle does **not** create the Postgres schema, seed tables, or grant database
-permissions — those happen in Labs 1.1 and 2.1, which is part of the actual workshop content.
+one step. The app is bound to the project, so the platform auto-creates the app's service
+principal Postgres login role. The bundle does **not** create the Postgres schema, seed tables, or
+grant schema-level permissions — those happen in Lab 1.1, which is part of the actual workshop content.
 
 Both the Lakebase project and the app name are auto-derived per user from
-`${workspace.current_user.id}` (e.g. `lakebase-workshop-6530815146371371` and
+`${workspace.current_user.id}` (e.g. `zerobus-lakebase-6530815146371371` and
 `storefront-6530815146371371`), so multiple attendees can deploy into the same workspace without
 colliding. The app's `description` field carries the deployer's full name so each attendee can
 spot their own app in the Apps list UI.
@@ -91,9 +96,8 @@ If your default CLI profile already targets the right workspace, the `--profile`
 
 After deployment, the app shows "Loading…" until the database is set up:
 
-1. **Lab 1.1** (`1.1 Lab - Discover and Seed the Lakebase Project`) — discovers the deployed project, creates the `ecommerce` schema, seeds 5 tables.
-2. **Lab 2.1** (`2.1 Lab - Roles Permissions and Connect Storefront`) — grants the storefront's service principal access to the schema. The "Loading…" disappears and you see products + a working cart.
-3. **Remaining labs** in order: 3.1 → 4.1 → 5.1 → 6.1 → 6.2 → 6.3 → 7.1 → 8 → 9.
+1. **Lab 1.1** (`1.1 Lab - Setup Lakebase and Connect the Storefront`) — discovers the deployed project, creates the `ecommerce` schema, seeds 5 tables, and grants the storefront's service principal access to the schema. The "Loading…" disappears and you see products + a working cart.
+2. **Remaining labs** in order: 3.1 → 4.1 → 5.1, plus the bonus labs.
 
 ## Re-deploying After Edits
 
@@ -123,9 +127,9 @@ Verify the project deployed successfully:
 databricks postgres list-projects --profile <your-profile>
 ```
 
-You should see one named `projects/lakebase-workshop-<your-user-id>`. If absent, re-run `bundle deploy`.
+You should see one named `projects/zerobus-lakebase-<your-user-id>`. If absent, re-run `bundle deploy`.
 
-### Storefront stays on "Loading…" after Lab 2.1
+### Storefront stays on "Loading…" after Lab 1.1
 
 Look at the app logs:
 
@@ -134,9 +138,9 @@ databricks apps logs storefront-<your-user-id> --profile <your-profile>
 ```
 
 Common causes:
-- The SP didn't get `USAGE` / `SELECT` / `INSERT` grants. Re-run Lab 2.1.
+- The SP didn't get `USAGE` / `SELECT` / `INSERT` grants. Re-run Lab 1.1.
 - The app started before the schema existed. Run Lab 1.1, then re-run `databricks bundle run datacart_storefront` to push fresh source.
-- Lakebase Autoscaling doesn't have native Apps resource binding yet — the app's `server/db.py` discovers PGHOST from the SDK at runtime. If logs show `password authentication failed`, the SP's Postgres role hasn't been created yet — Lab 2.1's grants (executed as the project owner) trigger that.
+- If logs show `password authentication failed`, the app's Lakebase resource binding didn't create the SP's Postgres role. Confirm the `postgres` binding in `resources/datacart_storefront.app.yml` deployed, then redeploy. (Schema-level access is still granted separately in Lab 1.1.)
 
 ### `bundle validate` errors about `root_path`
 

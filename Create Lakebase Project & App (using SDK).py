@@ -18,7 +18,7 @@
 # MAGIC
 # MAGIC ## What this notebook does
 # MAGIC
-# MAGIC 1. Creates the **Lakebase Autoscaling project** (`lakebase-workshop-<your-user-id>`)
+# MAGIC 1. Creates the **Lakebase Autoscaling project** (`zerobus-lakebase-<your-user-id>`)
 # MAGIC 2. Verifies the default `production` branch and its compute endpoint
 # MAGIC 3. Creates the **DataCart Storefront app** (`storefront-<your-user-id>`)
 # MAGIC 4. **Binds the Lakebase project to the app** as a database resource — the platform then
@@ -56,7 +56,7 @@ from databricks.sdk import WorkspaceClient
 w = WorkspaceClient()
 me = w.current_user.me()
 
-project_name = f"lakebase-workshop-{me.id}"
+project_name = f"zerobus-lakebase-{me.id}"
 display_name = f"Lakebase Workshop — {me.name.given_name} {me.name.family_name}"
 
 # Compute settings — match the DABs config in resources/lakebase_instance.yml

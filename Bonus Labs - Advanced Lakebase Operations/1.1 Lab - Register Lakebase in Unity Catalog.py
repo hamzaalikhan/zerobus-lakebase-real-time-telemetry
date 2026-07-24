@@ -137,7 +137,7 @@ w = WorkspaceClient()
 
 # Bundle-deployed Lakebase project (datacart-storefront/databricks.yml)
 # Project name is auto-derived per user from ${workspace.current_user.id}
-project_name = f"lakebase-workshop-{w.current_user.me().id}"
+project_name = f"zerobus-lakebase-{w.current_user.me().id}"
 
 # Unity Catalog targets — adjust to your workspace
 UC_CATALOG = "main"           # the catalog where we'll create the Delta marketing_campaigns table
@@ -170,7 +170,7 @@ print(f"UC schema:        {UC_CATALOG}.{UC_SCHEMA}")
 # MAGIC    - **Catalog name**: `lakebase_datacart`
 # MAGIC    - **Type**: select **Lakebase Postgres**
 # MAGIC    - **Compute**: select **Autoscaling**
-# MAGIC    - **Project**: pick your workshop project (`lakebase-workshop-<FirstName>-<LastName>`)
+# MAGIC    - **Project**: pick your workshop project (`zerobus-lakebase-<FirstName>-<LastName>`)
 # MAGIC    - **Branch**: `production`
 # MAGIC    - **Postgres database**: `databricks_postgres`
 # MAGIC 5. Click **Create**.

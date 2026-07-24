@@ -86,7 +86,7 @@ from databricks.sdk import WorkspaceClient
 w = WorkspaceClient()
 
 # Bundle-deployed Lakebase project
-project_name = f"lakebase-workshop-{w.current_user.me().id}"
+project_name = f"zerobus-lakebase-{w.current_user.me().id}"
 
 # Where the synced Delta tables will land
 # UC_CATALOG = "<<add your catalog>>"
@@ -189,7 +189,7 @@ owner_conn.close()
 # MAGIC ### UI walkthrough
 # MAGIC
 # MAGIC 1. Open **Catalog Explorer** in the sidebar.
-# MAGIC 2. Navigate to your Lakebase project: **Lakebase Postgres** → `lakebase-workshop-<FirstName>-<LastName>`
+# MAGIC 2. Navigate to your Lakebase project: **Lakebase Postgres** → `zerobus-lakebase-<FirstName>-<LastName>`
 # MAGIC 3. Click the **production** branch
 # MAGIC 4. In the branch overview page, click **Lakehouse Sync** button
 # MAGIC 5. Click the start sync button on the right side of the screen

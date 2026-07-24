@@ -1,7 +1,7 @@
 resources:
   postgres_projects:
     workshop_zerobus_lakebase:
-      project_id: "zerobus-lakebase-${workspace.current_user.id}"
+      project_id: "${var.project_id}"
       display_name: "Zerobus Lakebase Workshop — ${workspace.current_user.name.givenName} ${workspace.current_user.name.familyName}"
       pg_version: 17
       default_endpoint_settings:

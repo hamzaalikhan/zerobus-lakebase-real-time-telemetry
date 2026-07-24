@@ -2,6 +2,17 @@ bundle:
   name: datacart-storefront-data-centric
   engine: direct
 
+# Single source of truth for the Lakebase project + endpoint. Every attendee
+# gets their own project (one per user id); these vars are referenced by the
+# postgres_project resource, the app's Lakebase binding, and the app env.
+variables:
+  project_id:
+    description: Lakebase project slug — one per workshop attendee.
+    default: zerobus-lakebase-${workspace.current_user.id}
+  endpoint_name:
+    description: Full resource path of the project's production read-write endpoint.
+    default: projects/${var.project_id}/branches/production/endpoints/primary
+
 include:
   - resources/*.yml
 
