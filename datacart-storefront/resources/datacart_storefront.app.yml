@@ -4,3 +4,8 @@ resources:
       name: "storefront-${workspace.current_user.id}"
       description: "DataCart Storefront — ${workspace.current_user.name.givenName} ${workspace.current_user.name.familyName}"
       source_code_path: ${workspace.file_path}
+      # Bring the app up as part of `bundle deploy` — no separate `bundle run`.
+      # `lifecycle.started` is only supported for apps/clusters/sql_warehouses
+      # under the direct deployment engine (see bundle.engine: direct).
+      lifecycle:
+        started: true

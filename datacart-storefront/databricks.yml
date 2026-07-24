@@ -1,5 +1,6 @@
 bundle:
   name: datacart-storefront-data-centric
+  engine: direct
 
 include:
   - resources/*.yml

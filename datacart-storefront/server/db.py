@@ -17,10 +17,10 @@ def _discover_workshop_project() -> tuple[str, str]:
     Strategy:
       1. If LAKEBASE_PROJECT and ENDPOINT_NAME env vars are set, use them.
       2. Otherwise, look up *this* app's creator (the deployer), find their numeric
-         user ID, and resolve the project name `lakebase-workshop-<creator-id>`.
+         user ID, and resolve the project name `zerobus-lakebase-<creator-id>`.
          This is deterministic per deployer — even if multiple workshop projects
          exist in the same workspace, each app finds *its own* project.
-      3. Fallback: list accessible projects and pick the lone `lakebase-workshop-*`
+      3. Fallback: list accessible projects and pick the lone `zerobus-lakebase-*`
          entry (works only if the SP has access to exactly one workshop project).
 
     Returns (project_id, endpoint_name).
@@ -49,11 +49,11 @@ def _discover_workshop_project() -> tuple[str, str]:
     projects = list(w.postgres.list_projects())
     workshop_projects = [
         p for p in projects
-        if (p.name or "").startswith("projects/lakebase-workshop-")
+        if (p.name or "").startswith("projects/zerobus-lakebase-")
     ]
     if not workshop_projects:
         raise RuntimeError(
-            "No Lakebase project named 'lakebase-workshop-*' is accessible to this app's "
+            "No Lakebase project named 'zerobus-lakebase-*' is accessible to this app's "
             "service principal. Run Lab 2.1 to grant the SP project-level access."
         )
     if len(workshop_projects) > 1:
@@ -74,7 +74,7 @@ def _project_id_from_app_creator() -> str:
     The Apps platform sets `DATABRICKS_APP_NAME` on every running app. We look up
     the app's metadata, read `creator` (the deployer's email/userName), then look
     up the deployer's numeric user ID via SCIM. The bundle names projects
-    `lakebase-workshop-<deployer_user_id>`, so this gives us the exact project.
+    `zerobus-lakebase-<deployer_user_id>`, so this gives us the exact project.
     """
     app_name = os.environ.get("DATABRICKS_APP_NAME")
     if not app_name:
@@ -89,7 +89,7 @@ def _project_id_from_app_creator() -> str:
         if not users:
             logger.warning(f"No SCIM user found for app creator {creator_email}")
             return ""
-        return f"lakebase-workshop-{users[0].id}"
+        return f"zerobus-lakebase-{users[0].id}"
     except Exception as e:
         logger.warning(f"Could not derive project from app creator: {e}")
         return ""

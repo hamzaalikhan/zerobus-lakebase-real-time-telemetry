@@ -1,8 +1,8 @@
 resources:
   postgres_projects:
-    workshop_lakebase:
-      project_id: "lakebase-workshop-${workspace.current_user.id}"
-      display_name: "Lakebase Workshop — ${workspace.current_user.name.givenName} ${workspace.current_user.name.familyName}"
+    workshop_zerobus_lakebase:
+      project_id: "zerobus-lakebase-${workspace.current_user.id}"
+      display_name: "Zerobus Lakebase Workshop — ${workspace.current_user.name.givenName} ${workspace.current_user.name.familyName}"
       pg_version: 17
       default_endpoint_settings:
         autoscaling_limit_min_cu: 0.5
