@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from server.db import pool, DB_SCHEMA
 from server.schema_detector import column_exists, table_exists, get_promotions_table
-from server import events
+from server import zerobus_producer
 
 logger = logging.getLogger(__name__)
 
@@ -145,8 +145,9 @@ def add_to_cart(item: CartItem):
     current_qty = cart.get(item.product_id, 0)
     cart[item.product_id] = current_qty + item.quantity
 
-    # Collect: shopper added this product to the cart. Feeds the Supplier View.
-    events.record_event(events.ADD_TO_CART, item.product_id)
+    # Collect: shopper added this product to the cart — the deepest funnel signal
+    # before purchase. Pushed to the lakehouse via Zerobus.
+    zerobus_producer.emit(zerobus_producer.ADD_TO_CART, item.product_id)
 
     return {"message": f"Added {item.quantity}x {row[1]} to cart", "cart_quantity": cart[item.product_id]}
 

@@ -12,6 +12,21 @@ variables:
   endpoint_name:
     description: Full resource path of the project's production read-write endpoint.
     default: projects/${var.project_id}/branches/production/endpoints/primary
+  # --- Zerobus clickstream producer (Lab 3.1) -------------------------------
+  # Off by default. Lab 3.1 flips zerobus_enabled=true and sets the endpoint +
+  # bronze table (e.g. via `databricks bundle deploy --var=...` or a target
+  # override) once the bronze table from Lab 1.1 exists.
+  zerobus_enabled:
+    description: Enable the storefront's Zerobus clickstream producer.
+    default: "false"
+  zerobus_endpoint:
+    description: Region-specific Zerobus server endpoint (https://<workspace-id>.zerobus.<region>.cloud.databricks.com).
+    # Non-empty sentinel: the Apps API rejects empty env `value: ""`. The producer
+    # ignores this entirely while zerobus_enabled is "false".
+    default: "unset"
+  zerobus_bronze_table:
+    description: Fully-qualified UC bronze target (<catalog>.ecommerce.clickstream_bronze).
+    default: "unset"
 
 include:
   - resources/*.yml

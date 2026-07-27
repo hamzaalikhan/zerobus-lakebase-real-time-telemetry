@@ -72,25 +72,64 @@ auth is faked for the demo; note "governed via UC + Postgres roles in prod".)
 - **Done so far:** commit `2a69bc1` seeds the full **data-centric** workshop content into the
   fork (all labs, storefront, Includes, docs) + `.gitignore` (excludes `.claude/`, `.DS_Store`).
 
-## Plan / next steps
+## LOCKED PLAN — build the net-new Zerobus/Lakeflow lab (decided 2026-07-26)
 
-1. **Simplify pass (do first — clean base):** remove schema-migration/branching/PITR and
-   heavy bonus labs — candidates: `6.1`, `6.2`, `6.3` (branching/migration), `7.1` (PITR),
-   possibly `8` (monitoring). Keep the collect→aggregate→present spine:
-   `1.1` seed → `2.1` connect app → `3.1` reverse ETL → `5.1` lakehouse sync → `9` connect
-   apps. Trim `4.1` federation to optional.
-2. **Build the Zerobus module (net-new):**
-   - Pre-create a `clickstream` / `product_events` Delta table in UC.
-   - Producer (Python or Java) using `databricks/zerobus-sdk` — queue-then-flush.
-   - DLT/SQL rollup → gold `product_demand`.
-   - Reuse the Lab 3.1 synced-table plumbing to push `product_demand` back into Lakebase.
-3. **Add the supplier/dealer view to the app:** new `/dealer` React route +
-   `server/routes/dealer.py` endpoint (mirror `shop.py`/`orders.py`), querying
-   `product_demand` via the existing pool. `schema_detector` auto-lights it up.
-4. **Rewrite intro + README** around the loop narrative; recast the hero as a **product
-   engineer** (borrow the app-centric variant's framing). Keep the DataCart e-commerce theme
-   throughout — shopper storefront + supplier/dealer demand view over one Lakebase.
-5. Hand back to `bnwokele` via PR from this branch.
+Scope is the FULL loop: app emits clickstream → Zerobus → bronze → DLT(SQL) silver/gold →
+reverse-ETL synced back to Lakebase → supplier view reads it. All decisions below are locked
+with the user; do NOT re-litigate them — just build.
+
+### Lab numbering (user already renamed on disk — verified via git)
+- `1.1` Setup & Connect — EDIT: also create the bronze clickstream UC Delta table here +
+  grant the app SP Zerobus-ingest permission on it.
+- `2.1` Reverse ETL with Synced Tables — renamed from old 3.1 (git: D old 3.1, ?? new 2.1). Teaches synced-table mechanism FIRST.
+- `3.1` **NEW** — Clickstream → Zerobus → Medallion → Sync back (THE build target).
+- `4.1` Lakehouse Sync, `5.1` Connect Apps — unchanged.
+
+### The events (all same shape → ONE bronze table, ONE Zerobus stream)
+- Emit `view` + `click` + `add_to_cart` from the app. Shape: `(event_type, product_id, event_ts)`.
+  event_type column discriminates. NOT purchases (conversion comes from seeded orders join).
+- Lab note: "when you'd split into multiple tables" = only when event SHAPES differ (e.g. search
+  has a query string, purchase has an amount). For these 3, one table.
+
+### No aggregation in the app — ALL transforms in the pipeline, DLT authored in SQL
+- Bronze: plain UC Delta table (Zerobus target, created in 1.1, NOT a DLT table — DLT reads it as streaming source).
+- Silver: `CREATE OR REFRESH STREAMING TABLE` — dedup Zerobus at-least-once (DISTINCT), JOIN seeded `products` for name/category.
+- Gold `product_demand` (MATERIALIZED VIEW / STREAMING TABLE): per-product `views/clicks/add_to_carts`
+  via `COUNT(*) FILTER (WHERE event_type=...)`, `cart_rate`, + LEFT JOIN seeded `order_items` (units_sold/conversion)
+  + LEFT JOIN seeded `inventory` (in_stock / demand-vs-stock). Pure SQL, no PySpark (audience may not know Spark).
+- `product_demand` IS the gold deliverable — the end output of the lab.
+
+### Present back (reverse ETL, reuse the 2.1 synced-table mechanism)
+- Sync gold `product_demand` → Lakebase synced table. Supplier view (`server/routes/supplier.py`)
+  reads it as a simple table dump (nothing fancy). REMOVE the app's old Postgres `get_demand()` aggregation +
+  the `product_events` Postgres table from `server/events.py` — app now only EMITS.
+
+### Files
+- NEW `3.1 Lab - Clickstream Ingestion with Zerobus ...py`: explain Zerobus (pre-created table,
+  at-least-once, JSON ingest), ~500-session SEED GENERATOR as an in-notebook cell (visible to attendees,
+  `random.seed(42)`, category-weighted, funnel drop-off), DLT-SQL bronze→silver→gold, verify gold, sync back.
+- NEW `datacart-storefront/server/zerobus_producer.py`: best-effort producer, verified SDK
+  (`from zerobus.sdk.sync import ZerobusSdk`, JSON `ingest_record_offset`) — see [[zerobus-python-sdk-api]].
+  Reuse app SP client_id/client_secret (SP needs ingest grant from 1.1). Mirror events.py never-break-shopper discipline.
+- EDIT `1.1`: bronze table + SP grant. EDIT `server/events.py`: thin emit-to-Zerobus, drop aggregation.
+  EDIT `server/routes/supplier.py`: read synced product_demand. EDIT `0 Workshop Introduction.py`: add 3.1 to loop table.
+
+### Framing to teach (audience is lakehouse-native, will ask "why not just GROUP BY in Postgres?")
+Answer in the lab: aggregating in the OLTP tier competes with transactional storefront queries;
+push behavioral data to lakehouse, aggregate there (Photon, governance, lineage, Delta joins),
+sync only the small result back. That's the "Lakebase + lakehouse together" story.
+
+### Build order (next session, fresh — bypassPermissions now set so runs uninterrupted)
+1. VERIFY on `fevm-hamza-ai-lab` (profile `hamza_fevm_ai_workshop`): Zerobus region-enabled + get
+   `server_endpoint` URL. User said "do it." If not enabled → fallback: pre-populate bronze + narrate (repo risk note).
+2. Bronze table + SP grant into 1.1.
+3. Seed generator + `zerobus_producer.py`; wire view/click/add_to_cart emits in shop.py/cart.py.
+4. DLT-SQL medallion (silver + gold).
+5. Present-back synced table + point supplier view at it; strip app aggregation.
+6. Write the 3.1 lab notebook + update intro.
+7. **Spin up a VERIFIER AGENT at the end** — live bar: deploy, seed, run pipeline, confirm gold
+   populates + supplier view updates on the real workspace (user approved live verification).
+- No incremental commits (user: "no need to commit"). No PR yet.
 
 ## Risks / open questions
 

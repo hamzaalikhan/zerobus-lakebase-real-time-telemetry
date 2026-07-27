@@ -26,6 +26,16 @@ resources:
             value: ${var.endpoint_name}
           - name: DB_SCHEMA
             value: ecommerce
+          # Clickstream producer (Lab 3.1). Off by default so the storefront runs
+          # unchanged through Labs 1.1/2.1; Lab 3.1 sets ZEROBUS_ENABLED=true and the
+          # bronze table target. DATABRICKS_HOST / DATABRICKS_CLIENT_ID /
+          # DATABRICKS_CLIENT_SECRET are auto-injected by the Apps runtime.
+          - name: ZEROBUS_ENABLED
+            value: "${var.zerobus_enabled}"
+          - name: ZEROBUS_ENDPOINT
+            value: "${var.zerobus_endpoint}"
+          - name: ZEROBUS_BRONZE_TABLE
+            value: "${var.zerobus_bronze_table}"
       # Bring the app up as part of `bundle deploy` — no separate `bundle run`.
       # `lifecycle.started` is only supported for apps/clusters/sql_warehouses
       # under the direct deployment engine (see bundle.engine: direct).

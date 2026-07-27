@@ -56,6 +56,10 @@
 # MAGIC
 # MAGIC The marketing team has prepared Spring Sale promotions — product discounts, sale badges, and limited-time offers — in a Delta table in the data lakehouse. Using **Lakebase Synced Tables**, these promotions are pushed to the production database and instantly appear on the storefront with sale badges and discounted prices — without any application code changes.
 # MAGIC
+# MAGIC #### The Real-Time Clickstream Loop (Zerobus)
+# MAGIC
+# MAGIC DataCart wants to know what shoppers are actually interested in — not just what they buy. The storefront emits a live **clickstream** (product views, clicks, add-to-carts) and pushes it straight into a governed Unity Catalog Delta table using **Zerobus**, a serverless push API with no Kafka or message bus to run. A **Lakeflow** pipeline aggregates that stream — joined with seeded orders and inventory — into a per-product **demand** signal, which is synced back to Lakebase and surfaces in a **Supplier Demand View**. This closes the full **collect → aggregate → present** loop on one platform, driven by the app itself.
+# MAGIC
 # MAGIC #### The Unity Catalog Federation Scenario
 # MAGIC
 # MAGIC The analytics team wants to join live order data from Lakebase with marketing-campaign Delta tables for real-time attribution dashboards — without standing up another ETL pipeline. By **registering Lakebase as a Unity Catalog foreign catalog**, any SQL warehouse can query live OLTP data with full UC governance, and join it against Delta in a single statement.
@@ -88,8 +92,9 @@
 # MAGIC
 # MAGIC | Lab | What Happens |
 # MAGIC |-----|-------------|
-# MAGIC | **1.1 Setup & Connect** | Seed the schema and grant the service principal access — the storefront comes online with products, stock, cart, and orders |
-# MAGIC | **3.1 Reverse ETL** | Sale badges, discount prices, "Spring Sale Deals" section appear |
+# MAGIC | **1.1 Setup & Connect** | Seed the schema, grant the service principal access, and provision the clickstream bronze table — the storefront comes online with products, stock, cart, and orders |
+# MAGIC | **2.1 Reverse ETL** | Sale badges, discount prices, "Spring Sale Deals" section appear |
+# MAGIC | **3.1 Clickstream → Zerobus → Medallion** | The storefront streams live clicks to the lakehouse; a Lakeflow pipeline aggregates demand and syncs it back — the Supplier Demand View lights up |
 # MAGIC | **4.1 Lakehouse Sync** | Lakebase tables continuously mirror to Delta in Unity Catalog |
 # MAGIC | **5.1 Connect Apps** | Patterns for connecting applications to your Lakebase project |
 # MAGIC
@@ -115,6 +120,7 @@
 # MAGIC | Topic | Description |
 # MAGIC |---|---|
 # MAGIC | **Reverse ETL (UC → Lakebase)** | Serving lakehouse analytics data to applications via synced tables |
+# MAGIC | **Real-time ingestion (Zerobus)** | Pushing app clickstream straight into governed Delta, then aggregating with Lakeflow and serving the result back — the full collect → aggregate → present loop |
 # MAGIC | **UC Registration (Lakehouse Federation)** | Querying live Lakebase data from any UC SQL warehouse, with governance |
 # MAGIC | **Lakehouse Sync (Lakebase → UC)** | Continuously mirroring OLTP tables to Delta for analytical workloads |
 # MAGIC | **Branching** | Creating isolated environments for parallel schema evolution across multiple developer teams |

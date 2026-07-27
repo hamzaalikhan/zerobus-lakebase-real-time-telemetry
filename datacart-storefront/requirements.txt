@@ -3,3 +3,6 @@ uvicorn[standard]>=0.30.0
 psycopg[binary,pool]>=3.2.0
 databricks-sdk>=0.81.0
 pydantic>=2.0.0
+# Clickstream producer (Lab 3.1). Import is lazy + guarded in server/zerobus_producer.py,
+# so the app still runs if this is ever unavailable at runtime.
+databricks-zerobus-ingest-sdk>=1.4.0

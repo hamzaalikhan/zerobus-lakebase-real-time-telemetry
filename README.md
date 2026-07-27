@@ -9,8 +9,9 @@ You will step into the role of a database engineer at DataCart, a rapidly growin
 | # | Notebook | Type | Description |
 |---|---|---|---|
 | 0 | `0 Workshop Introduction` | Lecture | Workshop overview, Lakebase architecture, and the DataCart scenario |
-| 1.1 | `1.1 Lab - Setup Lakebase and Connect the Storefront` | Lab | Discover the bundle-deployed project, connect via OAuth, seed the e-commerce schema, and grant the storefront's service principal access to bring it online |
-| 3.1 | `3.1 Lab - Reverse ETL with Synced Tables (UC to Lakebase)` | Lab | Create a promotions Delta table in Unity Catalog and sync it to Lakebase; sale badges appear on the storefront |
+| 1.1 | `1.1 Lab - Setup Lakebase and Connect the Storefront` | Lab | Discover the bundle-deployed project, connect via OAuth, seed the e-commerce schema, grant the storefront's service principal access, and provision the clickstream bronze table — bringing the storefront online |
+| 2.1 | `2.1 Lab - Reverse ETL with Synced Tables (UC to Lakebase)` | Lab | Create a promotions Delta table in Unity Catalog and sync it to Lakebase; sale badges appear on the storefront |
+| 3.1 | `3.1 Lab - Clickstream Ingestion with Zerobus (App to Medallion to Lakebase)` | Lab | The storefront streams live clicks to a governed Delta table via Zerobus; a Lakeflow (SQL) medallion aggregates per-product demand and syncs it back to Lakebase — the Supplier Demand View lights up |
 | 4.1 | `4.1 Lab - Lakehouse Sync (Lakebase to UC)` | Lab | Continuously mirror Lakebase tables to Delta in UC; run analytics with zero OLTP load |
 | 5.1 | `5.1 Lecture - Connect Apps to Lakebase` | Lecture | How to connect external apps to Lakebase |
 
@@ -57,7 +58,8 @@ A customer-facing e-commerce web application (React + FastAPI) that **evolves in
 | Feature | Appears After |
 |---------|--------------|
 | Products, stock badges, cart, orders | Lab 1.1 |
-| Sale badges, discount prices, promo deals | Lab 3.1 |
+| Sale badges, discount prices, promo deals | Lab 2.1 |
+| Supplier Demand View (`/supplier`) — aggregated clickstream demand | Lab 3.1 |
 | (UC analytics surface lights up — no storefront change) | Bonus Lab 1.1 (federation) + Lab 4.1 (Lakehouse Sync) |
 | Star ratings, reviews | Bonus Lab 3.1 |
 | Loyalty tier badge, points, "Earn X pts" | Bonus Lab 3.1 |
@@ -185,11 +187,11 @@ The storefront **auto-detects schema changes** every 30 seconds. No redeployment
 - **No star ratings** — reviews table doesn't exist yet
 - **No loyalty features** — loyalty tables don't exist yet
 
-### After Lab 3.1 — Reverse ETL with Synced Tables
+### After Lab 2.1 — Reverse ETL with Synced Tables
 
 **Database change:** A `promotions` Delta table is created in Unity Catalog and synced to Lakebase via a synced table pipeline. First synced to a `dev-promotions` branch for validation, then promoted to the `production` branch. The synced table appears as `promotions_synced_prod` (or `promotions`) in the `ecommerce` Postgres schema.
 
-**Important — SP permissions for synced tables:** After the sync completes, you must re-grant the app SP access to the new table. Synced tables are created by the Lakebase sync pipeline (a different internal role), so `ALTER DEFAULT PRIVILEGES` from Lab 1.1 does **not** cover them. Lab 3.1 Step 7 handles this with:
+**Important — SP permissions for synced tables:** After the sync completes, you must re-grant the app SP access to the new table. Synced tables are created by the Lakebase sync pipeline (a different internal role), so `ALTER DEFAULT PRIVILEGES` from Lab 1.1 does **not** cover them. Lab 2.1 handles this with:
 ```sql
 GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 ```
@@ -204,6 +206,20 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 > Key demo point: The marketing team updated a Delta table in Unity Catalog. The synced
 > table pipeline pushed the data to Lakebase. The storefront detected the new table and
 > rendered promotions. **Zero application code changes required.**
+
+### After Lab 3.1 — Clickstream Ingestion with Zerobus
+
+**Database change:** The storefront pushes a live clickstream (product views, clicks, add-to-carts) into the `clickstream_bronze` Delta table (created in Lab 1.1) via **Zerobus**. A **Lakeflow** pipeline (authored in SQL) aggregates bronze → silver → gold into `product_demand`, which is synced back to Lakebase as `product_demand_synced_prod` in the `ecommerce` schema.
+
+**Important — SP permissions for synced tables:** same as Lab 2.1 — after the demand sync completes, re-grant the app SP `ALL ON ALL TABLES IN SCHEMA ecommerce` so the Supplier View can read it.
+
+**Storefront shows (Supplier Demand View goes live!):**
+- **`/supplier`** — A per-product demand dashboard: views, clicks, add-to-cart, cart rate, units sold, and a restock flag — aggregated across all shoppers.
+
+> Key demo point: The app only **emitted** raw events (no in-app aggregation). Zerobus landed
+> them in governed Delta, a Lakeflow pipeline did the demand math joined with orders and
+> inventory, and only the small result was synced back to Lakebase. The full **collect →
+> aggregate → present** loop on one platform — **zero application code changes** to surface it.
 
 ### After Bonus Lab 1.1 — Register Lakebase in Unity Catalog
 
@@ -232,7 +248,7 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 - `modify-orders` — exchange_rates table, currency FK migration
 - `add-index` — price index on products
 
-**Storefront shows:** No change — all work is on isolated branches. The synced flows from Lab 3.1 and Lab 4.1 keep targeting production.
+**Storefront shows:** No change — all work is on isolated branches. The synced flows from Lab 2.1, Lab 3.1, and Lab 4.1 keep targeting production.
 
 ### After Bonus Lab 3.1 — Schema Migration to Production
 
@@ -330,12 +346,19 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 - Check app logs at `<app-url>/logz`
 - Verify the SP has PostgreSQL roles on the ecommerce schema (Lab 1.1)
 
-### Spring Sale Deals section not appearing (after Lab 3.1)
+### Spring Sale Deals section not appearing (after Lab 2.1)
 - Check `/api/features` — if `promotions_active` is `false`, the SP can't see the synced table.
 - Re-run `GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";` as the project owner
-  (Lab 3.1 Step 7). Synced tables are created by the sync pipeline, not your user, so
+  (Lab 2.1 Step 5). Synced tables are created by the sync pipeline, not your user, so
   `ALTER DEFAULT PRIVILEGES` doesn't apply to them.
 - The storefront checks for both `promotions_synced_prod` and `promotions` table names.
+
+### Supplier Demand View empty (after Lab 3.1)
+- Check `/api/features` — if `demand_active` is `false`, the `product_demand` sync hasn't landed
+  or the SP can't see it. Re-run `GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";`
+  (Lab 3.1 Step 8).
+- Confirm the Lakeflow pipeline completed and `product_demand` is populated in Unity Catalog.
+- The storefront checks for `product_demand_synced_prod`, `product_demand_synced`, and `product_demand`.
 
 ### Federated query errors with "connection refused" (Bonus Lab 1.1)
 - Foreign catalog connections require Lakehouse Federation to be enabled on your SQL warehouse.

@@ -21,6 +21,11 @@ async def lifespan(app):
         logger.error(f"Pool open failed: {e}\n{traceback.format_exc()}")
     yield
     try:
+        from server import zerobus_producer
+        zerobus_producer.shutdown()  # flush any queued clickstream events
+    except Exception:
+        pass
+    try:
         pool.close()
     except Exception:
         pass

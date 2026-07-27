@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, HTTPException
 from server.db import pool, DB_SCHEMA
 from server.schema_detector import table_exists, column_exists, get_promotions_table
-from server import events
+from server import zerobus_producer
 
 router = APIRouter(prefix="/shop")
 
@@ -109,6 +109,11 @@ def list_products(
 
     _apply_promos(products, promos)
 
+    # Collect (Zerobus): every product surfaced in the listing is an impression —
+    # a `view` event. Best-effort push to the lakehouse; never blocks the response.
+    for p in products:
+        zerobus_producer.emit(zerobus_producer.VIEW, p["id"])
+
     return {
         "products": products,
         "categories": categories,
@@ -192,8 +197,9 @@ def get_product(product_id: int):
                 product["discount_pct"] = promo["discount_pct"]
                 product["sale_price"] = promo["sale_price"]
 
-    # Collect: a shopper viewed this product. Feeds the Supplier Demand View.
-    events.record_event(events.VIEW, product_id)
+    # Collect: a shopper opened this product's detail page — a `click` (deeper in
+    # the funnel than a listing impression). Pushed to the lakehouse via Zerobus.
+    zerobus_producer.emit(zerobus_producer.CLICK, product_id)
 
     return {"product": product, "reviews": reviews}
 

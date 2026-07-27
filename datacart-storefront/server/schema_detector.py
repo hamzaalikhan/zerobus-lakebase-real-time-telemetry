@@ -63,6 +63,7 @@ def get_features() -> dict:
         "orders_available": table_exists("orders"),
         "order_items_available": table_exists("order_items"),
         "promotions_active": get_promotions_table() is not None,
+        "demand_active": get_demand_table() is not None,
     }
 
 
@@ -78,4 +79,18 @@ def get_promotions_table() -> str | None:
     if table_exists("promotions"):
         return "promotions"
     matches = sorted(t for t in get_schema() if "promotions" in t.lower())
+    return matches[0] if matches else None
+
+
+def get_demand_table() -> str | None:
+    """Return the synced product-demand table name (Lab 3.1), or None.
+
+    Prefers the canonical synced names, then falls back to any table whose name
+    contains "product_demand" — so the Supplier View lights up regardless of the
+    exact synced-table name chosen when the sync was created.
+    """
+    for name in ("product_demand_synced_prod", "product_demand_synced", "product_demand"):
+        if table_exists(name):
+            return name
+    matches = sorted(t for t in get_schema() if "product_demand" in t.lower())
     return matches[0] if matches else None

@@ -12,6 +12,8 @@
 # MAGIC 2. **Connect** to a Lakebase database using OAuth token authentication
 # MAGIC 3. **Create and populate** a PostgreSQL `ecommerce` schema (5 tables, realistic data)
 # MAGIC 4. **Grant** the storefront app's service principal access to that schema
+# MAGIC 5. **Provision** the clickstream **bronze** Delta table in Unity Catalog and grant the app's
+# MAGIC    SP permission to write to it — the landing zone for Lab 3.1's Zerobus ingestion
 # MAGIC
 # MAGIC > **Setup expectation**: Your Lakebase project and the DataCart Storefront app are deployed by
 # MAGIC > the bundle before the workshop. If they aren't, see `WORKSHOP_SETUP.md`.
@@ -55,8 +57,16 @@
 # MAGIC         ├── orders       (22 rows)
 # MAGIC         └── order_items  (~55 rows)
 # MAGIC
-# MAGIC DataCart Storefront app  ──(SP granted access in Step 8)──▶  ecommerce schema
+# MAGIC DataCart Storefront app  ──(SP granted access in Step 7)──▶  ecommerce schema
+# MAGIC
+# MAGIC Unity Catalog: <your-catalog>.ecommerce                  ← governed lakehouse side
+# MAGIC └── clickstream_bronze  (empty Delta table)              ← created in Step 8 (Lab 3.1's Zerobus target)
 # MAGIC ```
+# MAGIC
+# MAGIC > **Two sides, one loop.** Steps 1–7 set up the **Lakebase (OLTP serving)** side the storefront
+# MAGIC > reads from. Step 8 sets up the **Unity Catalog (lakehouse)** side that Lab 3.1's Zerobus
+# MAGIC > clickstream lands in. Lab 3.1 aggregates the clickstream in UC and syncs the result *back*
+# MAGIC > to Lakebase — closing the collect → aggregate → present loop.
 
 # COMMAND ----------
 
@@ -455,13 +465,86 @@ conn.close()
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Step 8: Provision the Clickstream Bronze Table (Unity Catalog)
+# MAGIC
+# MAGIC Everything above set up the **Lakebase (OLTP)** side — the transactional database the storefront
+# MAGIC reads and writes. This step sets up the **Unity Catalog (lakehouse)** side that Lab 3.1 needs.
+# MAGIC
+# MAGIC In Lab 3.1 the storefront pushes a live **clickstream** (product views, clicks, add-to-cart) into
+# MAGIC the lakehouse using **Zerobus** — a serverless push API that writes directly into a UC-managed
+# MAGIC Delta table, no Kafka or message bus. Two facts drive this step:
+# MAGIC
+# MAGIC 1. **Zerobus does not create tables.** The target Delta table must already exist, with the exact
+# MAGIC    schema the producer sends. We create it here, empty.
+# MAGIC 2. **The app's service principal must be granted write access.** Zerobus authenticates as the
+# MAGIC    storefront's SP (OAuth). Unity Catalog requires the SP to hold `USE CATALOG` + `USE SCHEMA` +
+# MAGIC    `MODIFY` + `SELECT` on the target table. (Note: `ALL PRIVILEGES` alone is **not** sufficient for
+# MAGIC    ingest — `MODIFY` and `SELECT` must be granted explicitly.)
+# MAGIC
+# MAGIC | Column | Type | Meaning |
+# MAGIC |---|---|---|
+# MAGIC | `event_type` | STRING | `view`, `click`, or `add_to_cart` — one table, discriminated by type |
+# MAGIC | `product_id` | INT | Which product the event is about (joins to `products`) |
+# MAGIC | `event_ts` | STRING | When it happened (client-side ISO-8601). Kept raw as STRING; the silver layer casts it to TIMESTAMP. |
+# MAGIC
+# MAGIC > **Why `event_ts` as STRING, not TIMESTAMP?** Zerobus JSON ingest passes the value through as-is;
+# MAGIC > a bronze `TIMESTAMP` column would reject an ISO-8601 string like `2026-07-26T10:00:00+00:00`.
+# MAGIC > Landing raw text in bronze and casting in silver is the standard medallion pattern — bronze
+# MAGIC > captures exactly what arrived, silver cleans and types it.
+# MAGIC
+# MAGIC > **Why one table for three event types?** All three events share the *same shape*. You'd only
+# MAGIC > split into multiple tables when the shapes diverge (e.g. a search event carries a query string,
+# MAGIC > a purchase carries an amount). For view/click/add-to-cart, one table + a discriminator column is
+# MAGIC > simpler and lets the pipeline pivot with `COUNT(*) FILTER (WHERE event_type = ...)`.
+
+# COMMAND ----------
+
+# Set the Unity Catalog where the clickstream bronze table lives. Use the SAME catalog you'll
+# use in Labs 2.1 / 3.1 / 4.1 so everything stays together. You need CREATE SCHEMA / CREATE TABLE
+# on it (your own catalog is easiest).
+UC_CATALOG = "<add-your-catalog-name-here>"
+UC_SCHEMA = "ecommerce"
+BRONZE_TABLE = f"{UC_CATALOG}.{UC_SCHEMA}.clickstream_bronze"
+
+# Create the UC schema (idempotent) and the empty bronze Delta table.
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS {UC_CATALOG}.{UC_SCHEMA}")
+spark.sql(f"""
+    CREATE TABLE IF NOT EXISTS {BRONZE_TABLE} (
+        event_type  STRING,
+        product_id  INT,
+        event_ts    STRING
+    )
+    USING DELTA
+    COMMENT 'Raw storefront clickstream — Zerobus ingest target (Lab 3.1). Append-only, at-least-once. event_ts is raw ISO-8601 text; silver casts to TIMESTAMP.'
+""")
+print(f"✅ Bronze clickstream table ready (empty): {BRONZE_TABLE}")
+
+# COMMAND ----------
+
+# Grant the storefront app's SP write access on the bronze table so its Zerobus producer can ingest.
+# APP_NAME / SP_CLIENT_ID were resolved in Step 7; re-resolve here so this cell is safe to run alone.
+APP_NAME = f"storefront-{w.current_user.me().id}"
+SP_CLIENT_ID = w.apps.get(APP_NAME).service_principal_client_id
+
+spark.sql(f"GRANT USE CATALOG ON CATALOG {UC_CATALOG} TO `{SP_CLIENT_ID}`")
+spark.sql(f"GRANT USE SCHEMA ON SCHEMA {UC_CATALOG}.{UC_SCHEMA} TO `{SP_CLIENT_ID}`")
+spark.sql(f"GRANT MODIFY, SELECT ON TABLE {BRONZE_TABLE} TO `{SP_CLIENT_ID}`")
+print(f"✅ Granted USE CATALOG + USE SCHEMA + MODIFY + SELECT on {BRONZE_TABLE}")
+print(f"   to the storefront SP: {SP_CLIENT_ID}")
+print(f"\nLab 3.1 will point its Zerobus producer at this table.")
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Done
 # MAGIC
-# MAGIC You discovered the project, seeded the `ecommerce` schema, and granted the storefront app
-# MAGIC access. The storefront now serves products, stock, and a working cart.
+# MAGIC You discovered the project, seeded the `ecommerce` schema, granted the storefront app access,
+# MAGIC and provisioned the clickstream **bronze** Delta table (with the app SP able to write to it).
+# MAGIC The storefront now serves products, stock, and a working cart, and the lakehouse landing zone
+# MAGIC for Lab 3.1's Zerobus ingestion is in place.
 # MAGIC
-# MAGIC As later labs add tables (promotions in Lab 3.1, reviews/loyalty in the bonus labs), the SP
-# MAGIC inherits access automatically via the `ALTER DEFAULT PRIVILEGES` grants — no need to re-run
-# MAGIC this notebook.
+# MAGIC As later labs add tables (promotions in Lab 2.1, reviews/loyalty in the bonus labs), the SP
+# MAGIC inherits Lakebase access automatically via the `ALTER DEFAULT PRIVILEGES` grants — no need to
+# MAGIC re-run this notebook.
 # MAGIC
-# MAGIC **Next:** Lab 3.1 — Reverse ETL with Synced Tables (sale badges and discounts appear in the app).
+# MAGIC **Next:** Lab 2.1 — Reverse ETL with Synced Tables (sale badges and discounts appear in the app).

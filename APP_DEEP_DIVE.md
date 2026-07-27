@@ -49,11 +49,13 @@ datacart-storefront/
 │   ├── config.py             # Dual-mode auth (local vs deployed)
 │   ├── db.py                 # Lakebase connection pool + OAuth
 │   ├── schema_detector.py    # Dynamic feature detection (30s cached)
+│   ├── zerobus_producer.py   # Best-effort clickstream producer → Zerobus (Lab 3.1)
 │   └── routes/
-│       ├── shop.py           # Product catalog, search, featured
-│       ├── cart.py           # Shopping cart (add, update, clear)
+│       ├── shop.py           # Product catalog, search, featured (+ emits view/click)
+│       ├── cart.py           # Shopping cart (add, update, clear) (+ emits add_to_cart)
 │       ├── orders.py         # Order history + checkout + PITR guards
-│       └── account.py        # Customer profile + loyalty tier
+│       ├── account.py        # Customer profile + loyalty tier
+│       └── supplier.py       # Supplier Demand View (/supplier) — reads synced product_demand
 └── frontend/
     ├── package.json          # Node dependencies
     ├── vite.config.ts        # Vite config with API proxy
@@ -93,6 +95,7 @@ React UI conditionally renders new features
 | `orders_available` | `orders` table exists | Orders page works vs disaster state |
 | `order_items_available` | `order_items` table exists | Best sellers, checkout, order details |
 | `promotions_active` | `promotions` table exists (synced from UC) | Sale badges, discount prices, "Spring Sale Deals" section |
+| `demand_active` | `product_demand*` synced table exists | Supplier Demand View at `/supplier` shows aggregated clickstream demand |
 
 ## API Endpoints
 
@@ -127,6 +130,17 @@ React UI conditionally renders new features
 |--------|----------|-------------|
 | GET | `/api/account` | Demo customer profile. Includes `loyalty_points`, `loyalty_tier`, `email_verified` when columns/tables exist |
 
+### Supplier Demand View (`/supplier`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/supplier` | Standalone HTML dashboard of aggregated per-product demand (no React dependency). Reads the `product_demand*` synced table; shows a friendly empty state until Lab 3.1 syncs it |
+| GET | `/api/supplier/demand` | JSON: per-product views/clicks/add-to-cart, cart rate, units sold, restock flag |
+
+The storefront **emits** the clickstream (product views/clicks/add-to-cart) to Zerobus via
+`server/zerobus_producer.py`; it does **no** aggregation. The demand math runs in the Lab 3.1
+Lakeflow pipeline and is synced back to Lakebase for this view to read.
+
 ### Features & Debug
 
 | Method | Endpoint | Description |
@@ -159,7 +173,9 @@ ecommerce.order_items  ── ~55 rows  (order_id, product_id, quantity, unit_pr
 | `exchange_rates` table | Bonus Lab 2.1 (branch only) | Currency conversion rates |
 | `email_verified` column (customers) | Bonus Lab 4.1 | Email verification status |
 | `priority` column (orders) | Bonus Lab 4.1 | Order priority (high/medium/normal) |
-| `promotions` table (synced from UC) | Lab 3.1 | Sale badges, discount prices, Spring Sale deals |
+| `promotions` table (synced from UC) | Lab 2.1 | Sale badges, discount prices, Spring Sale deals |
+| `clickstream_bronze` table (UC Delta) | Lab 1.1 | Zerobus landing zone for the storefront clickstream (Lab 3.1) |
+| `product_demand_synced_prod` table (synced from UC) | Lab 3.1 | Aggregated per-product demand behind the Supplier Demand View |
 
 ### How Tables Map to the Storefront
 
@@ -172,14 +188,15 @@ ecommerce.order_items  ── ~55 rows  (order_id, product_id, quantity, unit_pr
 | `orders` | Order history page, checkout. Priority badges after Bonus Lab 4.1 |
 | `order_items` | Order detail line items, "Best Sellers" homepage section |
 | `loyalty_members` | Tier badge in navbar, loyalty banner on homepage (appears after Bonus Lab 3.1) |
-| `promotions` | Sale badges on product cards, strikethrough prices, "Spring Sale Deals" section (appears after Lab 3.1, synced from Unity Catalog) |
+| `promotions` | Sale badges on product cards, strikethrough prices, "Spring Sale Deals" section (appears after Lab 2.1, synced from Unity Catalog) |
+| `product_demand_synced_prod` | Supplier Demand View at `/supplier` — views/clicks/add-to-cart, cart rate, units sold, restock flag per product (appears after Lab 2.1, synced from Unity Catalog) |
 
 ## Frontend Pages
 
 ### Home Page
 - **Spring Sale hero banner** (teal gradient) with product/category count
 - **Loyalty Program banner** (amber gradient) — appears after Bonus Lab 3.1
-- **Spring Sale Deals** section — promoted products with sale badges and discount prices (appears after Lab 3.1)
+- **Spring Sale Deals** section — promoted products with sale badges and discount prices (appears after Lab 2.1)
 - **Top Rated** products — appears after Bonus Lab 3.1 when reviews table exists
 - **Best Sellers** — sorted by units sold. Shows "temporarily unavailable" during PITR disaster
 
@@ -189,15 +206,15 @@ ecommerce.order_items  ── ~55 rows  (order_id, product_id, quantity, unit_pr
 - Category pill filters and search
 - Star ratings and review counts — appear after Bonus Lab 3.1
 - "Earn X pts" labels — appear after Bonus Lab 3.1
-- **Sale badges** (e.g., "SPRING SALE -20%") on promoted product cards — appear after Lab 3.1
-- **Strikethrough prices** with sale prices for promoted products — appear after Lab 3.1
+- **Sale badges** (e.g., "SPRING SALE -20%") on promoted product cards — appear after Lab 2.1
+- **Strikethrough prices** with sale prices for promoted products — appear after Lab 2.1
 - "Add to Cart" button (disabled when out of stock)
 
 ### Product Detail Page
 - Large category icon with colored gradient background
 - Star ratings + review count — appear after Bonus Lab 3.1
 - "Earn X loyalty points with this purchase" — appears after Bonus Lab 3.1
-- **Promotion alert** with badge, discount %, and sale price — appears after Lab 3.1
+- **Promotion alert** with badge, discount %, and sale price — appears after Lab 2.1
 - Customer reviews section with stars and comments
 - Stock badge with warehouse location
 
@@ -205,7 +222,7 @@ ecommerce.order_items  ── ~55 rows  (order_id, product_id, quantity, unit_pr
 - Line items with quantity controls (+/-)
 - Stock validation (highlights out-of-stock items in red)
 - "You'll earn X loyalty points" summary — appears after Bonus Lab 3.1
-- **Sale prices** for promoted items with original price shown — appears after Lab 3.1
+- **Sale prices** for promoted items with original price shown — appears after Lab 2.1
 - Checkout error messaging during PITR disaster
 
 ### Orders Page
