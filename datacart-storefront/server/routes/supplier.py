@@ -1,16 +1,16 @@
 """Supplier/Dealer View — aggregate product demand across all shoppers.
 
-The storefront pushes every shopper's product views, clicks, and add-to-cart
-actions into the lakehouse via Zerobus (see server/zerobus_producer.py). A
-Lakeflow pipeline (Lab 3.1) aggregates that clickstream — joined with seeded
-orders and inventory — into a gold `product_demand` table, which is synced back
-into Lakebase. This view is a plain read of that synced table.
+A clickstream of product views, clicks, and add-to-cart actions is aggregated in
+the lakehouse: a Lakeflow pipeline (Lab 4.2) rolls it up — joined with orders and
+inventory — into a gold `product_demand` table, which is synced back into Lakebase
+(Lab 4.3). This view is a plain read of that synced table.
 
-The app does NO aggregation. It only emits raw events; all the demand math lives
-in the governed lakehouse pipeline (Photon, lineage, Delta joins), and only the
-small aggregated result is served back here. That's the "Lakebase + lakehouse
-together" story — behavioural data doesn't compete with transactional storefront
-queries in the OLTP tier.
+The app does NO aggregation. All the demand math lives in the governed lakehouse
+pipeline (Photon, lineage, Delta joins), and only the small aggregated result is
+served back here. That's the "Lakebase + lakehouse together" story — behavioural
+data doesn't compete with transactional storefront queries in the OLTP tier.
+(An optional producer, server/zerobus_producer.py, can push the clickstream in
+live via Zerobus — see Lab 5.1; it's off by default.)
 
 Surfaced as a plain table at GET /supplier (standalone HTML, no React dependency).
 JSON is also at GET /api/supplier/demand.
@@ -37,7 +37,7 @@ router = APIRouter()
 def supplier_demand():
     """Per-product demand aggregates, read from the synced `product_demand` table.
 
-    Never raises: if the synced table isn't present yet (Lab 3.1 not run) or
+    Never raises: if the synced table isn't present yet (Lab 4.3 not run) or
     anything upstream fails, this returns an empty, well-formed payload rather
     than a 500. The Supplier View is additive — it must never break the app.
     """
@@ -115,9 +115,9 @@ def _render_page(data: dict) -> str:
     else:
         table = """      <div class="empty">
         <p>No demand synced yet.</p>
-        <p class="hint">Run <strong>Lab 3.1</strong> to stream the storefront
-        clickstream through Zerobus, aggregate it in the lakehouse, and sync the
-        <code>product_demand</code> table back to Lakebase. Then refresh this page.</p>
+        <p class="hint">Run <strong>Labs 4.1–4.3</strong> to seed the clickstream,
+        aggregate it into <code>product_demand</code> with a Lakeflow pipeline, and
+        sync that table back to Lakebase. Then refresh this page.</p>
       </div>"""
 
     return f"""<!doctype html>
@@ -201,11 +201,11 @@ def _render_page(data: dict) -> str:
 {table}
   </main>
   <footer>
-    Demand is aggregated by a Lakeflow pipeline in the lakehouse (clickstream via
-    Zerobus, joined with orders and inventory) and synced back to Lakebase. The app
-    performs no aggregation &mdash; it only emits raw events. In production this view
-    would be governed via Unity Catalog + Postgres roles, and the supplier would see
-    only aggregated demand &mdash; never individual shopper data.
+    Demand is aggregated by a Lakeflow pipeline in the lakehouse (clickstream joined
+    with orders and inventory) and synced back to Lakebase. The app performs no
+    aggregation. In production this view would be governed via Unity Catalog +
+    Postgres roles, and the supplier would see only aggregated demand &mdash; never
+    individual shopper data.
   </footer>
 </body>
 </html>"""

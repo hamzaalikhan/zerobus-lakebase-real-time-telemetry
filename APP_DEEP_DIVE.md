@@ -49,7 +49,7 @@ datacart-storefront/
 │   ├── config.py             # Dual-mode auth (local vs deployed)
 │   ├── db.py                 # Lakebase connection pool + OAuth
 │   ├── schema_detector.py    # Dynamic feature detection (30s cached)
-│   ├── zerobus_producer.py   # Best-effort clickstream producer → Zerobus (Lab 3.1)
+│   ├── zerobus_producer.py   # Optional clickstream producer → Zerobus (Lab 5.1; off by default)
 │   └── routes/
 │       ├── shop.py           # Product catalog, search, featured (+ emits view/click)
 │       ├── cart.py           # Shopping cart (add, update, clear) (+ emits add_to_cart)
@@ -134,12 +134,13 @@ React UI conditionally renders new features
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/supplier` | Standalone HTML dashboard of aggregated per-product demand (no React dependency). Reads the `product_demand*` synced table; shows a friendly empty state until Lab 3.1 syncs it |
+| GET | `/supplier` | Standalone HTML dashboard of aggregated per-product demand (no React dependency). Reads the `product_demand*` synced table; shows a friendly empty state until Lab 4.3 syncs it |
 | GET | `/api/supplier/demand` | JSON: per-product views/clicks/add-to-cart, cart rate, units sold, restock flag |
 
-The storefront **emits** the clickstream (product views/clicks/add-to-cart) to Zerobus via
-`server/zerobus_producer.py`; it does **no** aggregation. The demand math runs in the Lab 3.1
-Lakeflow pipeline and is synced back to Lakebase for this view to read.
+The clickstream is aggregated entirely in the lakehouse: the **Lab 4.2** Lakeflow pipeline builds the
+`product_demand` table and **Lab 4.3** syncs it back to Lakebase for this view to read — the app does
+**no** aggregation. (An optional storefront producer, `server/zerobus_producer.py`, can push the
+clickstream in live via Zerobus, as shown in Lab 5.1; it's off by default.)
 
 ### Features & Debug
 
@@ -174,8 +175,8 @@ ecommerce.order_items  ── ~55 rows  (order_id, product_id, quantity, unit_pr
 | `email_verified` column (customers) | Bonus Lab 4.1 | Email verification status |
 | `priority` column (orders) | Bonus Lab 4.1 | Order priority (high/medium/normal) |
 | `promotions` table (synced from UC) | Lab 2.1 | Sale badges, discount prices, Spring Sale deals |
-| `clickstream_bronze` table (UC Delta) | Lab 1.1 | Zerobus landing zone for the storefront clickstream (Lab 3.1) |
-| `product_demand_synced_prod` table (synced from UC) | Lab 3.1 | Aggregated per-product demand behind the Supplier Demand View |
+| `clickstream_bronze` table (UC Delta) | Lab 4.1 | Seeded raw clickstream — bronze layer of the medallion pipeline |
+| `product_demand_synced_prod` table (synced from UC) | Lab 4.3 | Aggregated per-product demand behind the Supplier Demand View |
 
 ### How Tables Map to the Storefront
 
@@ -189,7 +190,7 @@ ecommerce.order_items  ── ~55 rows  (order_id, product_id, quantity, unit_pr
 | `order_items` | Order detail line items, "Best Sellers" homepage section |
 | `loyalty_members` | Tier badge in navbar, loyalty banner on homepage (appears after Bonus Lab 3.1) |
 | `promotions` | Sale badges on product cards, strikethrough prices, "Spring Sale Deals" section (appears after Lab 2.1, synced from Unity Catalog) |
-| `product_demand_synced_prod` | Supplier Demand View at `/supplier` — views/clicks/add-to-cart, cart rate, units sold, restock flag per product (appears after Lab 2.1, synced from Unity Catalog) |
+| `product_demand_synced_prod` | Supplier Demand View at `/supplier` — views/clicks/add-to-cart, cart rate, units sold, restock flag per product (appears after Lab 4.3, synced from Unity Catalog) |
 
 ## Frontend Pages
 
@@ -357,8 +358,8 @@ After PITR recovery, all features come back within 30 seconds (cache TTL). Prior
 
 ## Reverse ETL — Promotions via Synced Tables
 
-Lab 3.1 demonstrates **Lakebase Synced Tables** (reverse ETL). A `promotions` Delta table
-in Unity Catalog (`serverless_stable_339b90_catalog.ecommerce.promotions`) is synced to
+Lab 2.1 demonstrates **Lakebase Synced Tables** (reverse ETL). A `promotions` Delta table
+in Unity Catalog (`<your-catalog>.ecommerce.promotions`) is synced to
 the Lakebase `ecommerce` schema via a managed pipeline. The synced table appears in Postgres
 as `promotions_synced_prod` (the name may vary depending on how it's created in the UI).
 
@@ -416,7 +417,7 @@ end_date TIMESTAMP          -- Promotion end
 
 1. The Unity Catalog schema name **must match** the Lakebase Postgres schema name. Since the
    storefront reads from `ecommerce.*`, the Delta table must be in a UC schema named `ecommerce`
-   (e.g., `serverless_stable_339b90_catalog.ecommerce.promotions`).
+   (e.g., `<your-catalog>.ecommerce.promotions`).
 
 2. After each new synced table is created, **re-grant table permissions** to the app SP.
    Synced tables are created by the Lakebase sync pipeline (an internal role), not by your

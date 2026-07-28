@@ -8,7 +8,7 @@ resources:
       # role for this app's service principal and grants it CONNECT/CREATE, then
       # injects PGHOST/PGPORT/PGUSER/PGDATABASE/PGSSLMODE at runtime. This removes
       # the "password authentication failed" dead-end — no manual SP role setup.
-      # (Schema-level grants on `ecommerce` are still done in Lab 2.1.)
+      # (Schema-level grants on `ecommerce` are still done in Lab 1.1.)
       resources:
         - name: postgres
           postgres:
@@ -26,9 +26,9 @@ resources:
             value: ${var.endpoint_name}
           - name: DB_SCHEMA
             value: ecommerce
-          # Clickstream producer (Lab 3.1). Off by default so the storefront runs
-          # unchanged through Labs 1.1/2.1; Lab 3.1 sets ZEROBUS_ENABLED=true and the
-          # bronze table target. DATABRICKS_HOST / DATABRICKS_CLIENT_ID /
+          # Optional clickstream producer (see Lab 5.1). Off by default so the
+          # storefront runs unchanged through every lab; set ZEROBUS_ENABLED=true and
+          # a bronze table target to wire it up. DATABRICKS_HOST / DATABRICKS_CLIENT_ID /
           # DATABRICKS_CLIENT_SECRET are auto-injected by the Apps runtime.
           - name: ZEROBUS_ENABLED
             value: "${var.zerobus_enabled}"

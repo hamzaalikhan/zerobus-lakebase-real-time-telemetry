@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 3.1: Reverse ETL with Synced Tables — UC to Lakebase
+# MAGIC # Lab 2.1: Reverse ETL with Synced Tables — UC to Lakebase
 # MAGIC
 # MAGIC ---
 # MAGIC
@@ -11,9 +11,9 @@
 # MAGIC
 # MAGIC | Direction | Lab | Mechanism | Use Case |
 # MAGIC |---|---|---|---|
-# MAGIC | **UC → Lakebase** (this lab) | **3.1** | **Synced Tables** (managed CDC) | Push curated analytics data into OLTP so apps can serve it with low latency |
-# MAGIC | **Live read-through** | **4.1** | **Lakebase registered in UC** (Lakehouse Federation) | Query live OLTP from a SQL warehouse without any ETL |
-# MAGIC | **Lakebase → UC** | **5.1** | **Lakehouse Sync** | Continuously stream OLTP into Delta for high-volume analytics |
+# MAGIC | **UC → Lakebase** (this lab) | **2.1** | **Synced Tables** (managed CDC) | Push curated analytics data into OLTP so apps can serve it with low latency |
+# MAGIC | **Lakebase → UC** | **3.1** | **Lakehouse Sync** | Continuously stream OLTP into Delta for high-volume analytics |
+# MAGIC | **Live read-through** | **Bonus Lab 1.1** | **Lakebase registered in UC** (Lakehouse Federation) | Query live OLTP from a SQL warehouse without any ETL |
 # MAGIC
 # MAGIC In this module you'll move curated analytics data from the Databricks Lakehouse into the Lakebase
 # MAGIC Postgres database so the live DataCart Storefront can serve it to shoppers with millisecond
@@ -237,8 +237,8 @@ dbutils.library.restartPython()
 
 # MAGIC %md
 # MAGIC For this lab we'll seed a Delta table in the Lakehouse and sync it into Lakebase for the
-# MAGIC storefront. Set your target catalog below — the lab creates the `ecommerce` schema inside
-# MAGIC it for you (you just need `CREATE SCHEMA` privileges on the catalog).
+# MAGIC storefront. The **catalog** and **schema** come from the notebook widgets — set them to the
+# MAGIC same values you used in Lab 1.1 (they default to the same thing).
 
 # COMMAND ----------
 
@@ -248,20 +248,23 @@ import psycopg2
 
 w = WorkspaceClient()
 
+# Widgets — set to the SAME catalog/schema you created in Lab 1.1.
+dbutils.widgets.text("catalog", "datacart", "1. Catalog name")
+dbutils.widgets.text("schema", "ecommerce", "2. Schema name")
+
+UC_CATALOG = dbutils.widgets.get("catalog").strip()
+UC_SCHEMA = dbutils.widgets.get("schema").strip()
+UC_TABLE = f"{UC_CATALOG}.{UC_SCHEMA}.promotions"
+
 # Bundle-deployed Lakebase project (datacart-storefront/databricks.yml)
 # Project name is auto-derived per user from ${workspace.current_user.id}
 project_name = f"zerobus-lakebase-{w.current_user.me().id}"
 db_user = w.current_user.me().user_name
 
-# Unity Catalog configuration — set the catalog before running
-UC_CATALOG = "<add-your-catalog-name-here>"
-UC_SCHEMA = "ecommerce"
-UC_TABLE = f"{UC_CATALOG}.{UC_SCHEMA}.promotions"
-
-# Lakebase configuration
+# Lakebase schema (matches the UC schema name).
 db_schema = "ecommerce"
 
-# Create the ecommerce schema in the chosen catalog (idempotent).
+# Ensure the schema exists (Lab 1.1 created it; idempotent here).
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {UC_CATALOG}.{UC_SCHEMA}")
 
 print(f"✅ SDK initialized")
@@ -561,7 +564,7 @@ display(spark.sql(f"""
 # MAGIC
 # MAGIC **This is a critical step.** Synced tables are created by the Lakebase sync pipeline —
 # MAGIC a different internal role than your user account. This means the `ALTER DEFAULT PRIVILEGES`
-# MAGIC grants from Lab 2 **do not apply** to synced tables, because those defaults only cover
+# MAGIC grants from Lab 1.1 **do not apply** to synced tables, because those defaults only cover
 # MAGIC tables created by your user.
 # MAGIC
 # MAGIC We need to re-run `GRANT ALL ON ALL TABLES` to include the newly synced `promotions` table.

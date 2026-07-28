@@ -10,9 +10,9 @@
 # MAGIC isolated branches.
 # MAGIC
 # MAGIC > **Cross-flow note.** When you create a dev branch, it gets a *point-in-time copy* of every
-# MAGIC > table on its parent — including any synced tables (like `promotions_synced_prod` from Lab 3.1).
-# MAGIC > That copy is **static**: the Synced Tables pipeline (Lab 3.1) and the Lakehouse Sync pipeline
-# MAGIC > (Lab 4.1) both target the **production** branch. Dev branches are sandboxes; downstream
+# MAGIC > table on its parent — including any synced tables (like `promotions_synced_prod` from Lab 2.1).
+# MAGIC > That copy is **static**: the Synced Tables pipeline (Lab 2.1) and the Lakehouse Sync pipeline
+# MAGIC > (Lab 3.1) both target the **production** branch. Dev branches are sandboxes; downstream
 # MAGIC > sync flows continue to reflect production state.
 # MAGIC
 # MAGIC ## Learning Objectives

@@ -1,30 +1,34 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 4.1: Lakehouse Sync — Lakebase to Unity Catalog
+# MAGIC # Lab 3.1: Lakehouse Sync — Lakebase to Unity Catalog
 # MAGIC
 # MAGIC ---
 # MAGIC
 # MAGIC ## Outbound — Streaming OLTP into Delta for Analytics
 # MAGIC
-# MAGIC This is the third movement in the data-flow story. Together, the three labs map every direction
+# MAGIC This is the second movement in the data-flow story. Together, the labs map every direction
 # MAGIC of data movement between Lakebase and the lakehouse:
 # MAGIC
 # MAGIC | Direction | Lab | Mechanism | Best for |
 # MAGIC |---|---|---|---|
-# MAGIC | UC → Lakebase | 3.1 | Synced Tables | Serving Lakehouse data to apps |
+# MAGIC | UC → Lakebase | 2.1 | Synced Tables | Serving Lakehouse data to apps |
+# MAGIC | **Lakebase → UC** | **3.1 (this lab)** | **Lakehouse Sync** | **High-throughput analytics on OLTP data** |
 # MAGIC | Live read-through | Bonus Lab 1.1 | UC foreign catalog (federation) | Ad-hoc joins, governed reads |
-# MAGIC | **Lakebase → UC** | **4.1 (this lab)** | **Lakehouse Sync** | **High-throughput analytics on OLTP data** |
 # MAGIC
-# MAGIC In this lab you'll set up Lakehouse Sync so the live `orders`, `customers`, and `order_items`
-# MAGIC tables in Lakebase are continuously mirrored as Delta tables in Unity Catalog. Once that's
-# MAGIC running, BI dashboards, ML pipelines, and ad-hoc analytical queries can hit Delta — getting
-# MAGIC full lakehouse performance — without putting any load on the OLTP database that powers the
-# MAGIC storefront.
+# MAGIC In this lab you'll set up Lakehouse Sync so the live `orders`, `customers`, `order_items`,
+# MAGIC `products`, and `inventory` tables in Lakebase are continuously mirrored as Delta tables in
+# MAGIC Unity Catalog. Once that's running, BI dashboards, ML pipelines, and ad-hoc analytical queries
+# MAGIC can hit Delta — getting full lakehouse performance — without putting any load on the OLTP
+# MAGIC database that powers the storefront.
+# MAGIC
+# MAGIC > **These mirrored tables feed Lab 4.2.** The clickstream medallion pipeline joins the demand
+# MAGIC > signal against these `products` / `inventory` / `order_items` tables. Mirroring them here means
+# MAGIC > Lab 4.2 has real data to join to — no re-seeding.
 # MAGIC
 # MAGIC ## Learning Objectives
 # MAGIC
 # MAGIC By the end of this lab, you will be able to:
-# MAGIC 1. **Explain** what Lakehouse Sync is and how it complements Synced Tables (Lab 3.1) and
+# MAGIC 1. **Explain** what Lakehouse Sync is and how it complements Synced Tables (Lab 2.1) and
 # MAGIC    federation (Bonus Lab 1.1)
 # MAGIC 2. **Create** a Lakehouse Sync configuration that mirrors Lakebase tables to UC Delta
 # MAGIC 3. **Trigger** the initial snapshot and verify Delta tables appear in UC
@@ -55,9 +59,11 @@
 # MAGIC ┌─────────────────────────┐                  ┌─────────────────────────────────┐
 # MAGIC │   Lakebase (production) │                  │      Unity Catalog (Delta)       │
 # MAGIC │  ─────────────────────  │  Lakehouse Sync  │  ──────────────────────────────  │
-# MAGIC │   ecommerce.orders      │ ──────────────▶ │  <your-catalog>.datacart_uc.orders │
-# MAGIC │   ecommerce.customers   │       CDC        │  <your-catalog>.datacart_uc.customers│
-# MAGIC │   ecommerce.order_items │                  │  <your-catalog>.datacart_uc.order_items│
+# MAGIC │   ecommerce.orders      │ ──────────────▶ │  <your-catalog>.ecommerce.orders │
+# MAGIC │   ecommerce.customers   │       CDC        │  <your-catalog>.ecommerce.customers│
+# MAGIC │   ecommerce.products    │                  │  <your-catalog>.ecommerce.products│
+# MAGIC │   ecommerce.inventory   │                  │  <your-catalog>.ecommerce.inventory│
+# MAGIC │   ecommerce.order_items │                  │  <your-catalog>.ecommerce.order_items│
 # MAGIC │                         │                  │                                  │
 # MAGIC │  Storefront (writes)    │                  │  BI / dashboards / ML (reads)    │
 # MAGIC └─────────────────────────┘                  └─────────────────────────────────┘
@@ -85,14 +91,19 @@ from databricks.sdk import WorkspaceClient
 
 w = WorkspaceClient()
 
+# Widgets — set to the SAME catalog/schema you used in Lab 1.1.
+dbutils.widgets.text("catalog", "datacart", "1. Catalog name")
+dbutils.widgets.text("schema", "ecommerce", "2. Schema name")
+
+UC_CATALOG = dbutils.widgets.get("catalog").strip()
+UC_SCHEMA = dbutils.widgets.get("schema").strip()
+
 # Bundle-deployed Lakebase project
 project_name = f"zerobus-lakebase-{w.current_user.me().id}"
 
-# Where the synced Delta tables will land
-# UC_CATALOG = "<<add your catalog>>"
-UC_CATALOG = "serverless_stable_339b90_catalog"
-UC_SCHEMA = "datacart_uc"
-TABLES_TO_SYNC = ["orders", "customers", "order_items"]
+# Tables to mirror from Lakebase → UC. products / inventory / order_items feed the
+# Lab 4.2 medallion pipeline; orders / customers round out the analytics picture.
+TABLES_TO_SYNC = ["orders", "customers", "order_items", "products", "inventory"]
 
 print(f"User:             {w.current_user.me().user_name}")
 print(f"Lakebase project: {project_name}")
@@ -223,7 +234,7 @@ owner_conn.close()
 # MAGIC   to avoid that.
 # MAGIC
 # MAGIC In Bonus Lab 3.1, after applying the migration, come back and re-query the synced `customers` table
-# MAGIC under `<your-catalog>.datacart_uc` — the new `loyalty_points` column will appear in Delta with
+# MAGIC under `<your-catalog>.ecommerce` — the new `loyalty_points` column will appear in Delta with
 # MAGIC no extra work on your side.
 # MAGIC
 # MAGIC In Bonus Lab 5.1 (PITR), if you DROP `orders` on Lakebase, the sync pipeline pauses and reports an
@@ -244,25 +255,21 @@ owner_conn.close()
 # MAGIC | You want zero pipeline overhead | You can pay for a sync pipeline to amortize cost |
 # MAGIC
 # MAGIC In production, most data-centric teams use **both**: federation for live spot-checks /
-# MAGIC governed read APIs, and Lakehouse Sync for high-throughput analytical workloads. The next
-# MAGIC lab covers the latter.
+# MAGIC governed read APIs, and Lakehouse Sync for high-throughput analytical workloads.
 
 # COMMAND ----------
 
 # MAGIC %md-sandbox
 # MAGIC ## Summary
 # MAGIC
-# MAGIC - You set up a Lakehouse Sync that mirrors three Lakebase tables to Delta in UC.
-# MAGIC - You verified an end-to-end write path: storefront-style insert in Lakebase → Delta replica.
-# MAGIC - You ran a customer-LTV aggregation against Delta — exactly the workload you don't want
-# MAGIC   running directly on the OLTP database.
-# MAGIC - You now have a complete picture of all three Lakebase ↔ Lakehouse data movements:
-# MAGIC   inbound (Synced Tables, Lab 3.1), live (Federation, Bonus Lab 1.1), outbound (this lab).
+# MAGIC - You set up a Lakehouse Sync that mirrors five Lakebase tables (`orders`, `customers`,
+# MAGIC   `order_items`, `products`, `inventory`) to Delta in UC.
+# MAGIC - Those Delta replicas are governed, columnar, and Photon-accelerated — analytics can hammer
+# MAGIC   them without touching the OLTP database that serves the storefront.
+# MAGIC - The `products` / `inventory` / `order_items` replicas become the join inputs for the
+# MAGIC   clickstream medallion pipeline in **Lab 4.2**.
+# MAGIC - You now have two of the three Lakebase ↔ Lakehouse data movements: inbound (Synced Tables,
+# MAGIC   Lab 2.1) and outbound (this lab). The live read-through (Federation) is covered in Bonus Lab 1.1.
 # MAGIC
-# MAGIC With those three primitives in your toolkit, the rest of the workshop (branching, schema
-# MAGIC migration, PITR) is about safely *evolving* the OLTP side while these data flows continue
-# MAGIC to operate. That's where we go next.
-
-# COMMAND ----------
-
-conn.close()
+# MAGIC **Next:** Lab 4.1 — seed a real-time clickstream, the first step of the collect → aggregate →
+# MAGIC present loop.

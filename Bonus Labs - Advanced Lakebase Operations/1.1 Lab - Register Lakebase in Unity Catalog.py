@@ -6,16 +6,16 @@
 # MAGIC
 # MAGIC ## Direction 2 of 3: Live Read-Through from UC into Lakebase
 # MAGIC
-# MAGIC In Lab 3.1 you pushed curated Lakehouse data **into** Lakebase via a Synced Table. This lab
-# MAGIC is the second movement in the data-flow story: **register your Lakebase database as a foreign
+# MAGIC In Lab 2.1 you pushed curated Lakehouse data **into** Lakebase via a Synced Table. This lab
+# MAGIC is the third movement in the data-flow story: **register your Lakebase database as a foreign
 # MAGIC catalog in Unity Catalog**, so analytics tools can query the live OLTP data — with no ETL,
 # MAGIC no copy, no staleness — and join it against Delta tables in the lakehouse.
 # MAGIC
 # MAGIC | Direction | Lab | Mechanism |
 # MAGIC |---|---|---|
-# MAGIC | UC → Lakebase | 3.1 | Synced Tables |
+# MAGIC | UC → Lakebase | 2.1 | Synced Tables |
+# MAGIC | Lakebase → UC | 3.1 | Lakehouse Sync |
 # MAGIC | **Live read-through** | **Bonus Lab 1.1 (this lab)** | **Lakehouse Federation (foreign catalog)** |
-# MAGIC | Lakebase → UC | 4.1 | Lakehouse Sync |
 # MAGIC
 # MAGIC ## Learning Objectives
 # MAGIC
@@ -23,7 +23,7 @@
 # MAGIC 1. **Explain** the difference between Synced Tables (materialized) and Lakehouse Federation (live)
 # MAGIC 2. **Register** a Lakebase database as a Unity Catalog foreign catalog using the Catalog Explorer UI
 # MAGIC 3. **Run** a federated join between live OLTP data and Delta analytics data from the SQL Editor
-# MAGIC 4. **Reason** about when to use federation vs. Lakehouse Sync (covered in Lab 4.1)
+# MAGIC 4. **Reason** about when to use federation vs. Lakehouse Sync (covered in Lab 3.1)
 # MAGIC
 # MAGIC > **Docs**: [Register a Lakebase database in Unity Catalog](https://docs.databricks.com/aws/en/oltp/projects/register-uc) | [Lakehouse Federation](https://docs.databricks.com/aws/en/query-federation/)
 
@@ -84,12 +84,12 @@
 # MAGIC | Layer | Controls | How to grant |
 # MAGIC |---|---|---|
 # MAGIC | **Unity Catalog** | Who can browse / query the foreign catalog from a SQL warehouse, notebook, or dashboard | The user who registers the catalog becomes its owner. Grant others `USE CATALOG` + `SELECT` to let them query. Metastore admins can manage all registered catalogs. |
-# MAGIC | **Postgres roles** | Who can connect directly to the Lakebase database via the Postgres wire protocol (`psycopg`, `psql`, the storefront app's SP) | The Postgres roles and `GRANT` statements you set up in Lab 2.1. Independent from UC. |
+# MAGIC | **Postgres roles** | Who can connect directly to the Lakebase database via the Postgres wire protocol (`psycopg`, `psql`, the storefront app's SP) | The Postgres roles and `GRANT` statements you set up in Lab 1.1. Independent from UC. |
 # MAGIC
 # MAGIC > **Key distinction.** UC permissions only protect the federated read path. If you grant a
 # MAGIC > user `SELECT` on the foreign catalog but they have no Postgres role grants, queries through
 # MAGIC > UC still work because UC connects with the *registrar's* identity, not the requester's. To
-# MAGIC > prevent direct OLTP access, manage Postgres roles in Lab 2.1's pattern.
+# MAGIC > prevent direct OLTP access, manage Postgres roles in Lab 1.1's pattern.
 
 # COMMAND ----------
 
@@ -98,7 +98,7 @@
 # MAGIC
 # MAGIC Both let UC consumers see Lakebase data, but they have very different semantics:
 # MAGIC
-# MAGIC | Aspect | Synced Tables (Lab 3.1) | Foreign Catalog (this lab) |
+# MAGIC | Aspect | Synced Tables (Lab 2.1) | Foreign Catalog (this lab) |
 # MAGIC |---|---|---|
 # MAGIC | **Direction of data movement** | UC → Lakebase | Read-through; no movement |
 # MAGIC | **Data freshness** | As fresh as the sync mode (snapshot / triggered / continuous) | Always live (queries hit Lakebase compute directly) |
@@ -378,7 +378,7 @@ print(f"Campaigns:      {CAMPAIGNS_TABLE}")
 # MAGIC
 # MAGIC | Limitation | What it means | Workaround |
 # MAGIC |---|---|---|
-# MAGIC | **Read-only through UC** | You can't `INSERT` / `UPDATE` / `DELETE` against the foreign catalog from a SQL warehouse | Writes go through Postgres protocol, the storefront app, or a Synced Tables / Lakehouse Sync pipeline (Lab 3.1 / Lab 4.1) |
+# MAGIC | **Read-only through UC** | You can't `INSERT` / `UPDATE` / `DELETE` against the foreign catalog from a SQL warehouse | Writes go through Postgres protocol, the storefront app, or a Synced Tables / Lakehouse Sync pipeline (Lab 2.1 / Lab 3.1) |
 # MAGIC | **One Postgres database per catalog** | Each foreign catalog represents a single Lakebase database | Register additional databases as separate catalogs |
 # MAGIC | **Metadata is cached** | UC caches schema metadata to reduce Postgres traffic — newly created Lakebase tables may not appear immediately | Refresh the catalog from Catalog Explorer or wait for the next cache refresh |
 # MAGIC | **Branch-scoped registration** | A registered catalog points at a specific Lakebase branch | Register each branch you want to expose as its own UC catalog |
