@@ -96,7 +96,7 @@
 # MAGIC | **2.1 Reverse ETL** | Sale badges, discount prices, "Spring Sale Deals" section appear |
 # MAGIC | **3.1 Lakehouse Sync** | Lakebase tables continuously mirror to Delta in Unity Catalog |
 # MAGIC | **4.1–4.3 Real-Time Clickstream Analytics** | Seed a clickstream (4.1), aggregate it into per-product demand with a Lakeflow medallion pipeline (4.2), and sync it back to Lakebase (4.3) — the Supplier Demand View lights up |
-# MAGIC | **5.1 Zerobus** | Push records straight into a typed Delta table with Zerobus, and see a typed target reject non-conforming data |
+# MAGIC | **5.1 Zerobus** | Turn on the storefront's built-in Zerobus producer and watch real shopper clicks stream live into governed Delta |
 # MAGIC
 # MAGIC **Bonus labs** (`Bonus Labs - Advanced Lakebase Operations/` — optional, advanced Lakebase operations):
 # MAGIC

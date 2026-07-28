@@ -15,7 +15,7 @@ You will step into the role of a database engineer at DataCart, a rapidly growin
 | 4.1 | `4.1 Lab - Seed the Clickstream` | Lab | Land a realistic, reproducible clickstream in a bronze Delta table (the *collect* step) |
 | 4.2 | `4.2 Lab - Medallion Pipeline` | Lab | A Lakeflow (SQL) medallion aggregates the clickstream — joined with the mirrored orders/inventory — into a per-product demand signal (the *aggregate* step) |
 | 4.3 | `4.3 Lab - Sync Demand Back to Lakebase` | Lab | Sync the gold demand table back to Lakebase; the Supplier Demand View lights up (the *present* step) |
-| 5.1 | `5.1 Lab - Zerobus Direct Push Ingestion` | Lab | Push records straight into a typed Delta table with Zerobus, and see how a typed target rejects non-conforming data |
+| 5.1 | `5.1 Lab - Zerobus Direct Push Ingestion` | Lab | Turn on the storefront's built-in Zerobus producer and watch real shopper clicks stream live into governed Delta — no message bus, no app rewrite |
 
 ## Bonus Labs — Advanced Lakebase Operations
 
@@ -244,9 +244,11 @@ These three short labs build the **collect → aggregate → present** loop:
 
 ### After Lab 5.1 — Zerobus Direct Push Ingestion
 
-**What it shows:** Zerobus pushes records straight into a typed Delta table (no message bus), and a **typed target table rejects non-conforming data** — the schema is a contract. In production this is how the seeded clickstream from Lab 4.1 would arrive live (see `server/zerobus_producer.py`).
+**What it shows:** The storefront's built-in Zerobus producer (`server/zerobus_producer.py`, off by default) is enabled with a redeploy, and real shopper clicks stream straight into a governed Delta table — no message bus, no app rewrite. This is the live version of the clickstream that Lab 4.1 seeded.
 
-**Storefront shows:** No change — this is a focused, standalone look at the ingestion API.
+**Database change:** A `clickstream_live` Delta table is created in UC and the app SP is granted `MODIFY`/`SELECT` on it; the app is redeployed with `zerobus_enabled=true`.
+
+**Storefront shows:** No visible change to shoppers — but every view/click/add-to-cart they perform now lands in Delta via Zerobus.
 
 ### After Bonus Lab 1.1 — Register Lakebase in Unity Catalog
 
