@@ -242,15 +242,17 @@ dbutils.library.restartPython()
 
 # COMMAND ----------
 
+# Widgets — set to the SAME catalog/schema you created in Lab 1.1.
+dbutils.widgets.text("catalog", "", "1. Catalog name")
+dbutils.widgets.text("schema", "", "2. Schema name")
+
+# COMMAND ----------
+
 from databricks.sdk import WorkspaceClient
 import time
 import psycopg2
 
 w = WorkspaceClient()
-
-# Widgets — set to the SAME catalog/schema you created in Lab 1.1.
-dbutils.widgets.text("catalog", "", "1. Catalog name")
-dbutils.widgets.text("schema", "", "2. Schema name")
 
 UC_CATALOG = dbutils.widgets.get("catalog").strip()
 UC_SCHEMA = dbutils.widgets.get("schema").strip()
