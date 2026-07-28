@@ -101,21 +101,15 @@ dbutils.library.restartPython()
 
 # COMMAND ----------
 
-# Widgets — the workshop's single source of truth. Edit the boxes at the top of the
-# notebook, or change the defaults here. Every downstream lab reads the same values.
-dbutils.widgets.text("catalog", "datacart", "1. Catalog name")
-dbutils.widgets.text("schema", "ecommerce", "2. Schema name")
+# Widgets — the workshop's single source of truth. Fill in the boxes at the top of
+# the notebook. Every downstream lab reads the same values.
+dbutils.widgets.text("catalog", "", "1. Catalog name")
+dbutils.widgets.text("schema", "", "2. Schema name")
 dbutils.widgets.text("external_location_url", "", "3. External location URL (s3://... or abfss://...)")
 
 UC_CATALOG = dbutils.widgets.get("catalog").strip()
 UC_SCHEMA = dbutils.widgets.get("schema").strip()
 EXTERNAL_LOCATION_URL = dbutils.widgets.get("external_location_url").strip()
-
-if not EXTERNAL_LOCATION_URL:
-    raise ValueError(
-        "Set the 'external_location_url' widget to a storage path you can write to "
-        "(e.g. s3://my-bucket/datacart). Ask your instructor if unsure."
-    )
 
 print(f"Catalog:            {UC_CATALOG}")
 print(f"Schema:             {UC_CATALOG}.{UC_SCHEMA}")
