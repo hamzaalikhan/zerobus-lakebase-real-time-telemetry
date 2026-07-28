@@ -10,7 +10,7 @@ labs start, so workshop time isn't burned on UI clicks.
 
 - **Databricks Workspace**: any workspace with Lakebase Autoscaling and Databricks Apps support
 - **Databricks CLI**: v0.229.0+ (only required if deploying via terminal — workspace-UI deploy needs no local CLI)
-- **Unity Catalog**: enabled in your workspace (required for Bonus Lab 1.1 and Lab 4.1)
+- **Unity Catalog**: enabled in your workspace, plus an **external location** you can create a catalog against — Lab 1.1 creates the workshop catalog with a managed location on it (required for synced tables and Lakehouse Sync)
 - **A SQL warehouse**: needed for the federated queries in Bonus Lab 1.1 (any size)
 - **Workspace files** and **serverless compute** must be enabled in the workspace (admin settings) for the workspace-UI deploy flow to work
 
@@ -96,8 +96,8 @@ If your default CLI profile already targets the right workspace, the `--profile`
 
 After deployment, the app shows "Loading…" until the database is set up:
 
-1. **Lab 1.1** (`1.1 Lab - Setup Lakebase and Connect the Storefront`) — discovers the deployed project, creates the `ecommerce` schema, seeds 5 tables, and grants the storefront's service principal access to the schema. The "Loading…" disappears and you see products + a working cart.
-2. **Remaining labs** in order: 3.1 → 4.1 → 5.1, plus the bonus labs.
+1. **Lab 1.1** (`1.1 Lab - Setup Lakebase and Connect the Storefront`) — set the widgets (catalog, schema, external-location URL), create the catalog, discover the deployed project, create the `ecommerce` schema, seed 5 tables, and grant the storefront's service principal access to the schema. The "Loading…" disappears and you see products + a working cart.
+2. **Remaining labs** in order: 2.1 → 3.1 → 4.1 → 4.2 → 4.3 → 5.1, plus the bonus labs.
 
 ## Re-deploying After Edits
 
@@ -150,6 +150,6 @@ The bundle pins `root_path` to `${workspace.current_user.userName}`, so it auto-
 
 Foreign catalog connections require Lakehouse Federation to be enabled on your SQL warehouse. Use a serverless SQL warehouse if you don't have classic warehouses configured for federation.
 
-### The Lakehouse Sync option doesn't appear in the UI (Lab 4.1)
+### The Lakehouse Sync option doesn't appear in the UI (Lab 3.1)
 
 Lakehouse Sync is gated by region and feature flag — confirm the **Sync to Unity Catalog** option is visible on your project's page. If not, ask your Databricks contact to enable the feature on this workspace.

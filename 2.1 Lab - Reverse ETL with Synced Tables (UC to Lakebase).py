@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 3.1: Reverse ETL with Synced Tables — UC to Lakebase
+# MAGIC # Lab 2.1: Reverse ETL with Synced Tables — UC to Lakebase
 # MAGIC
 # MAGIC ---
 # MAGIC
@@ -11,9 +11,9 @@
 # MAGIC
 # MAGIC | Direction | Lab | Mechanism | Use Case |
 # MAGIC |---|---|---|---|
-# MAGIC | **UC → Lakebase** (this lab) | **3.1** | **Synced Tables** (managed CDC) | Push curated analytics data into OLTP so apps can serve it with low latency |
-# MAGIC | **Live read-through** | **4.1** | **Lakebase registered in UC** (Lakehouse Federation) | Query live OLTP from a SQL warehouse without any ETL |
-# MAGIC | **Lakebase → UC** | **5.1** | **Lakehouse Sync** | Continuously stream OLTP into Delta for high-volume analytics |
+# MAGIC | **UC → Lakebase** (this lab) | **2.1** | **Synced Tables** (managed CDC) | Push curated analytics data into OLTP so apps can serve it with low latency |
+# MAGIC | **Lakebase → UC** | **3.1** | **Lakehouse Sync** | Continuously stream OLTP into Delta for high-volume analytics |
+# MAGIC | **Live read-through** | **Bonus Lab 1.1** | **Lakebase registered in UC** (Lakehouse Federation) | Query live OLTP from a SQL warehouse without any ETL |
 # MAGIC
 # MAGIC In this module you'll move curated analytics data from the Databricks Lakehouse into the Lakebase
 # MAGIC Postgres database so the live DataCart Storefront can serve it to shoppers with millisecond
@@ -237,8 +237,14 @@ dbutils.library.restartPython()
 
 # MAGIC %md
 # MAGIC For this lab we'll seed a Delta table in the Lakehouse and sync it into Lakebase for the
-# MAGIC storefront. Set your target catalog below — the lab creates the `ecommerce` schema inside
-# MAGIC it for you (you just need `CREATE SCHEMA` privileges on the catalog).
+# MAGIC storefront. The **catalog** and **schema** come from the notebook widgets — set them to the
+# MAGIC same values you used in Lab 1.1 (they default to the same thing).
+
+# COMMAND ----------
+
+# Set these to the SAME catalog/schema you created in Lab 1.1.
+dbutils.widgets.text("catalog", "", "1. Catalog name")
+dbutils.widgets.text("schema", "", "2. Schema name")
 
 # COMMAND ----------
 
@@ -248,20 +254,14 @@ import psycopg2
 
 w = WorkspaceClient()
 
-# Bundle-deployed Lakebase project (datacart-storefront/databricks.yml)
-# Project name is auto-derived per user from ${workspace.current_user.id}
-project_name = f"zerobus-lakebase-{w.current_user.me().id}"
-db_user = w.current_user.me().user_name
-
-# Unity Catalog configuration — set the catalog before running
-UC_CATALOG = "<add-your-catalog-name-here>"
-UC_SCHEMA = "ecommerce"
+UC_CATALOG = dbutils.widgets.get("catalog").strip()
+UC_SCHEMA = dbutils.widgets.get("schema").strip()
 UC_TABLE = f"{UC_CATALOG}.{UC_SCHEMA}.promotions"
 
-# Lakebase configuration
+project_name = f"zerobus-lakebase-{w.current_user.me().id}"
+db_user = w.current_user.me().user_name
 db_schema = "ecommerce"
 
-# Create the ecommerce schema in the chosen catalog (idempotent).
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {UC_CATALOG}.{UC_SCHEMA}")
 
 print(f"✅ SDK initialized")
@@ -419,20 +419,17 @@ conn_prod, _, _ = connect_to_branch("production")
 
 # COMMAND ----------
 
-# Get product prices from Lakebase
+# Read product prices from Lakebase so we can compute sale prices.
 with conn_prod.cursor() as cur:
     cur.execute(f"SELECT id, price FROM {db_schema}.products ORDER BY id")
     product_prices = {row[0]: float(row[1]) for row in cur.fetchall()}
 
-# Update Delta table with computed sale prices
 from pyspark.sql.functions import col, round as spark_round, lit
 
 promo_df = spark.table(UC_TABLE)
-# Create a mapping DataFrame
 price_rows = [Row(product_id=pid, original_price=price) for pid, price in product_prices.items()]
 prices_df = spark.createDataFrame(price_rows)
 
-# Join and compute sale_price
 updated_df = (
     promo_df.join(prices_df, "product_id", "left")
     .withColumn("sale_price",
@@ -491,77 +488,12 @@ display(spark.sql(f"""
 
 # COMMAND ----------
 
-# MAGIC %md-sandbox
-# MAGIC ### Deploy synced tables as code
-# MAGIC
-# MAGIC The UI flow above is the fastest way to provision a synced table. For production, you'd
-# MAGIC typically declare the sync alongside the rest of your infrastructure as code so it lives
-# MAGIC in Git and deploys through CI/CD.
-# MAGIC
-# MAGIC > **Declarative Automation Bundles**: not supported for synced tables today — coming soon.
-# MAGIC > For now, use Terraform if you want an IaC-managed sync.
-# MAGIC
-# MAGIC #### Terraform
-# MAGIC
-# MAGIC The Databricks Terraform provider includes `databricks_postgres_synced_table`, which
-# MAGIC references the production branch of your Lakebase project directly.
-# MAGIC ([typical project setup](https://learn.microsoft.com/en-us/azure/databricks/oltp/projects/terraform-typical-project))
-# MAGIC
-# MAGIC ```hcl
-# MAGIC # Reference the bundle-deployed Lakebase Autoscaling project.
-# MAGIC data "databricks_current_user" "me" {}
-# MAGIC
-# MAGIC locals {
-# MAGIC   project_id     = "zerobus-lakebase-${data.databricks_current_user.me.id}"
-# MAGIC   production_arn = "projects/${local.project_id}/branches/production"
-# MAGIC }
-# MAGIC
-# MAGIC variable "uc_catalog" {
-# MAGIC   description = "The UC catalog containing your ecommerce.promotions Delta table"
-# MAGIC   type        = string
-# MAGIC }
-# MAGIC
-# MAGIC resource "databricks_postgres_synced_table" "promotions" {
-# MAGIC   synced_table_id = "${var.uc_catalog}.ecommerce.promotions_synced_prod"
-# MAGIC
-# MAGIC   spec = {
-# MAGIC     branch                             = local.production_arn
-# MAGIC     postgres_database                  = "databricks_postgres"
-# MAGIC     source_table_full_name             = "${var.uc_catalog}.ecommerce.promotions"
-# MAGIC     primary_key_columns                = ["id"]
-# MAGIC     scheduling_policy                  = "SNAPSHOT"   # SNAPSHOT | TRIGGERED | CONTINUOUS
-# MAGIC     create_database_objects_if_missing = true
-# MAGIC
-# MAGIC     new_pipeline_spec = {
-# MAGIC       storage_catalog = var.uc_catalog
-# MAGIC       storage_schema  = "ecommerce"
-# MAGIC     }
-# MAGIC   }
-# MAGIC }
-# MAGIC ```
-# MAGIC
-# MAGIC Apply with:
-# MAGIC
-# MAGIC ```bash
-# MAGIC terraform apply -var="uc_catalog=<your-catalog>"
-# MAGIC ```
-# MAGIC
-# MAGIC > **Heads up.** `scheduling_policy` accepts `SNAPSHOT`, `TRIGGERED`, or `CONTINUOUS`. Triggered
-# MAGIC > and Continuous require **Change Data Feed** on the source Delta table (we enabled this in
-# MAGIC > Step 1). The `new_pipeline_spec.storage_catalog` / `storage_schema` is where the sync
-# MAGIC > pipeline persists checkpoints — it must be a UC catalog where you have `CREATE TABLE` rights.
-# MAGIC
-# MAGIC For the rest of this workshop we use the UI-created synced table. The next step
-# MAGIC (granting the SP access) is the same regardless of which path created the synced table.
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Step 5: Grant SP Access to the Synced Table
 # MAGIC
 # MAGIC **This is a critical step.** Synced tables are created by the Lakebase sync pipeline —
 # MAGIC a different internal role than your user account. This means the `ALTER DEFAULT PRIVILEGES`
-# MAGIC grants from Lab 2 **do not apply** to synced tables, because those defaults only cover
+# MAGIC grants from Lab 1.1 **do not apply** to synced tables, because those defaults only cover
 # MAGIC tables created by your user.
 # MAGIC
 # MAGIC We need to re-run `GRANT ALL ON ALL TABLES` to include the newly synced `promotions` table.
@@ -572,19 +504,17 @@ display(spark.sql(f"""
 
 # COMMAND ----------
 
-# Get the app's SP client ID
 APP_NAME = f"storefront-{w.current_user.me().id}"
 app_info = w.apps.get(APP_NAME)
 SP_CLIENT_ID = app_info.service_principal_client_id
 print(f"App SP: {SP_CLIENT_ID}")
 
-# Connect as the project owner to grant permissions
 conn_prod, _, _ = connect_to_branch("production")
 
 with conn_prod.cursor() as cur:
     sp_role = f'"{SP_CLIENT_ID}"'
 
-    # Re-grant ALL on ALL tables — this picks up the new synced table
+    # Re-grant ALL on ALL tables — this picks up the new synced table.
     cur.execute(f"GRANT ALL ON ALL TABLES IN SCHEMA {db_schema} TO {sp_role};")
     print(f"✅ Granted ALL on ALL tables in {db_schema} (includes synced tables)")
 

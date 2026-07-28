@@ -499,7 +499,7 @@ print(f"\n🎉 Production has both teams' changes!")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### B. Lakehouse Sync (Lab 4.1) — `email_verified` and `priority` should appear in Delta
+# MAGIC ### B. Lakehouse Sync (Lab 3.1) — `email_verified` and `priority` should appear in Delta
 
 # COMMAND ----------
 

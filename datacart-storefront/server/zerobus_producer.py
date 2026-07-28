@@ -3,8 +3,9 @@
 This is the "collect" step of the workshop loop, done the way a real deployment
 would: every product view / click / add-to-cart the shopper performs is pushed
 straight into a Unity Catalog Delta table via **Zerobus** — a serverless push
-API (no Kafka, no message bus). From there Lab 3.1's DLT pipeline aggregates it
-into demand signals and syncs the result back to Lakebase for the Supplier View.
+API (no Kafka, no message bus). From there the medallion DLT pipeline (Lab 4.2)
+aggregates it into demand signals and syncs the result back to Lakebase for the
+Supplier View (Lab 4.3). Zerobus itself is explored standalone in Lab 5.1.
 
 Design discipline (mirrors server/events.py — telemetry must never break the shop):
   * Fully best-effort. Every public call is wrapped so a failure to emit an event
@@ -14,11 +15,11 @@ Design discipline (mirrors server/events.py — telemetry must never break the s
     Zerobus isn't region-enabled, we log once and silently no-op thereafter — the
     storefront keeps serving; only the clickstream goes dark.
   * No aggregation here. The app only EMITS raw events. All rollups (dedup,
-    joins, demand math) happen in the lakehouse pipeline (Lab 3.1), not in-app.
+    joins, demand math) happen in the lakehouse pipeline (Lab 4.2), not in-app.
 
 Configuration (all via env; set by the app deployment):
   * ZEROBUS_ENABLED       — "true" to turn the producer on (default off, so the
-                            app runs unchanged until Lab 3.1 flips it on).
+                            app runs unchanged unless you explicitly enable it).
   * ZEROBUS_ENDPOINT      — region-specific server endpoint,
                             https://<workspace-id>.zerobus.<region>.cloud.databricks.com
   * ZEROBUS_BRONZE_TABLE  — fully-qualified UC target, <catalog>.ecommerce.clickstream_bronze

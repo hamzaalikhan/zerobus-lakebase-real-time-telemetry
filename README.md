@@ -9,11 +9,13 @@ You will step into the role of a database engineer at DataCart, a rapidly growin
 | # | Notebook | Type | Description |
 |---|---|---|---|
 | 0 | `0 Workshop Introduction` | Lecture | Workshop overview, Lakebase architecture, and the DataCart scenario |
-| 1.1 | `1.1 Lab - Setup Lakebase and Connect the Storefront` | Lab | Discover the bundle-deployed project, connect via OAuth, seed the e-commerce schema, grant the storefront's service principal access, and provision the clickstream bronze table — bringing the storefront online |
+| 1.1 | `1.1 Lab - Setup Lakebase and Connect the Storefront` | Lab | Set the workshop widgets, create the Unity Catalog (with a managed location), discover the bundle-deployed project, connect via OAuth, seed the e-commerce schema, and grant the storefront's service principal access — bringing the storefront online |
 | 2.1 | `2.1 Lab - Reverse ETL with Synced Tables (UC to Lakebase)` | Lab | Create a promotions Delta table in Unity Catalog and sync it to Lakebase; sale badges appear on the storefront |
-| 3.1 | `3.1 Lab - Clickstream Ingestion with Zerobus (App to Medallion to Lakebase)` | Lab | The storefront streams live clicks to a governed Delta table via Zerobus; a Lakeflow (SQL) medallion aggregates per-product demand and syncs it back to Lakebase — the Supplier Demand View lights up |
-| 4.1 | `4.1 Lab - Lakehouse Sync (Lakebase to UC)` | Lab | Continuously mirror Lakebase tables to Delta in UC; run analytics with zero OLTP load |
-| 5.1 | `5.1 Lecture - Connect Apps to Lakebase` | Lecture | How to connect external apps to Lakebase |
+| 3.1 | `3.1 Lab - Lakehouse Sync (Lakebase to UC)` | Lab | Continuously mirror Lakebase tables (orders, customers, order_items, products, inventory) to Delta in UC; run analytics with zero OLTP load |
+| 4.1 | `4.1 Lab - Seed the Clickstream` | Lab | Land a realistic, reproducible clickstream in a bronze Delta table (the *collect* step) |
+| 4.2 | `4.2 Lab - Medallion Pipeline` | Lab | A Lakeflow (SQL) medallion aggregates the clickstream — joined with the mirrored orders/inventory — into a per-product demand signal (the *aggregate* step) |
+| 4.3 | `4.3 Lab - Sync Demand Back to Lakebase` | Lab | Sync the gold demand table back to Lakebase; the Supplier Demand View lights up (the *present* step) |
+| 5.1 | `5.1 Lab - Zerobus Direct Push Ingestion` | Lab | Turn on the storefront's built-in Zerobus producer and watch real shopper clicks stream live into governed Delta — no message bus, no app rewrite |
 
 ## Bonus Labs — Advanced Lakebase Operations
 
@@ -59,8 +61,8 @@ A customer-facing e-commerce web application (React + FastAPI) that **evolves in
 |---------|--------------|
 | Products, stock badges, cart, orders | Lab 1.1 |
 | Sale badges, discount prices, promo deals | Lab 2.1 |
-| Supplier Demand View (`/supplier`) — aggregated clickstream demand | Lab 3.1 |
-| (UC analytics surface lights up — no storefront change) | Bonus Lab 1.1 (federation) + Lab 4.1 (Lakehouse Sync) |
+| (UC analytics surface lights up — no storefront change) | Bonus Lab 1.1 (federation) + Lab 3.1 (Lakehouse Sync) |
+| Supplier Demand View (`/supplier`) — aggregated clickstream demand | Lab 4.3 |
 | Star ratings, reviews | Bonus Lab 3.1 |
 | Loyalty tier badge, points, "Earn X pts" | Bonus Lab 3.1 |
 | Priority badges, verified badge | Bonus Lab 4.1 |
@@ -69,7 +71,7 @@ A customer-facing e-commerce web application (React + FastAPI) that **evolves in
 ### Prerequisites
 
 - Databricks workspace with Lakebase & Databricks Apps support
-- Unity Catalog enabled (required for Bonus Lab 1.1 and Lab 4.1)
+- Unity Catalog enabled, plus an **external location** you can create a catalog against (Lab 1.1 creates the catalog with a managed location)
 - A SQL warehouse (any size) for the federated queries in Bonus Lab 1.1
 - Databricks CLI v0.229.0+ authenticated with a profile
 
@@ -146,30 +148,25 @@ databricks bundle run datacart_storefront --profile <your-profile>
 
 > **Where the source lives after deploy** — at `/Workspace/Users/<your-email>/.bundle/datacart-storefront-data-centric/dev/files/`. That's what the app's `source_code_path` points at. Editing files in your Git folder doesn't change what the running app sees until you re-run `bundle deploy` (re-upload) and `bundle run` (re-deploy source onto the app).
 
-#### Alternative: No-DABs setup via the SDK
-
-If you can't or don't want to use DABs at all (e.g., your workspace doesn't support the workspace deploy flow and you don't have the CLI), open the **`Optional - Create Lakebase Project (SDK).py`** notebook in this folder. The notebook handles almost everything the bundle does, via the Databricks SDK:
-
-1. Creates the Lakebase Autoscaling project (`zerobus-lakebase-<your-user-id>` — same name pattern as the bundle).
-2. Verifies the default `production` branch and compute endpoint are ready.
-3. Creates the storefront app (`storefront-<your-user-id>`) **with the Lakebase project pre-attached as a database resource**, so the platform auto-injects `PGHOST` / `PGUSER` / `PGPORT` / `PGDATABASE` env vars on the next source deploy.
-
-The **only** step left for you afterwards is pointing the app at the source code and clicking **Deploy** in the workspace UI — instructions are in the notebook's final cell. Once that's done, all the regular labs (1.1 onward) work the same way as the DAB path because they discover the project and app by name.
-
 ### Step 2: Run Lab 1.1 to set up and connect
 
-Open **`1.1 Lab - Setup Lakebase and Connect the Storefront`** in the workspace. This one lab:
+Open **`1.1 Lab - Setup Lakebase and Connect the Storefront`** in the workspace. Set the notebook
+**widgets** (catalog, schema, external-location URL) at the top, then run it. This one lab:
 
-1. Discovers the bundle-deployed Lakebase project (`zerobus-lakebase-<your-user-id>`)
-2. Connects via OAuth and seeds 5 tables: customers, products, inventory, orders, order_items
-3. Grants the storefront app's service principal access to the `ecommerce` schema
+1. Creates the Unity Catalog with an explicit **managed location** (needed by synced tables + Lakehouse Sync later)
+2. Discovers the bundle-deployed Lakebase project (`zerobus-lakebase-<your-user-id>`)
+3. Connects via OAuth and seeds 5 tables: customers, products, inventory, orders, order_items
+4. Grants the storefront app's service principal access to the `ecommerce` schema
 
 The storefront shows "Loading…" until the grant in the final step, then populates with products
 and a working cart.
 
+> **Widgets carry across labs.** Set the catalog/schema once in Lab 1.1; every later lab exposes the
+> same widgets (defaulting to the same values), so keep them consistent.
+
 ### Step 3: Go through the rest of the workshop!
 
-Run the remaining labs in order: 3.1 → 4.1 → 5.1, plus the bonus labs.
+Run the remaining labs in order: 2.1 → 3.1 → 4.1 → 4.2 → 4.3 → 5.1, plus the bonus labs.
 
 
 ## Workshop Flow — Storefront Evolution
@@ -207,19 +204,41 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 > table pipeline pushed the data to Lakebase. The storefront detected the new table and
 > rendered promotions. **Zero application code changes required.**
 
-### After Lab 3.1 — Clickstream Ingestion with Zerobus
+### After Lab 3.1 — Lakehouse Sync (Lakebase to UC)
 
-**Database change:** The storefront pushes a live clickstream (product views, clicks, add-to-carts) into the `clickstream_bronze` Delta table (created in Lab 1.1) via **Zerobus**. A **Lakeflow** pipeline (authored in SQL) aggregates bronze → silver → gold into `product_demand`, which is synced back to Lakebase as `product_demand_synced_prod` in the `ecommerce` schema.
+**Database change:** A Lakehouse Sync pipeline continuously mirrors `orders`, `customers`, `order_items`, `products`, and `inventory` from Lakebase to Delta tables under `<your-catalog>.ecommerce`.
 
-**Important — SP permissions for synced tables:** same as Lab 2.1 — after the demand sync completes, re-grant the app SP `ALL ON ALL TABLES IN SCHEMA ecommerce` so the Supplier View can read it.
+**What's queryable now:**
+- Delta replicas of OLTP tables — heavy analytical aggregations run on photon, no OLTP load
+- The `products` / `inventory` / `order_items` replicas become the join inputs for the Lab 4.2 medallion pipeline
+
+**Storefront shows:** No change. BI / ML consumers can now hit the lakehouse side.
+
+### After Labs 4.1 → 4.2 → 4.3 — Real-Time Clickstream Analytics
+
+These three short labs build the **collect → aggregate → present** loop:
+
+- **4.1 (collect):** Seed a realistic, reproducible clickstream into a `clickstream_bronze` Delta table.
+- **4.2 (aggregate):** A **Lakeflow** pipeline (authored in SQL) aggregates bronze → silver → gold into `product_demand`, joining the clickstream with the `products` / `inventory` / `order_items` tables mirrored in Lab 3.1.
+- **4.3 (present):** Sync `product_demand` back to Lakebase as `product_demand_synced_prod` in the `ecommerce` schema.
+
+**Important — SP permissions for synced tables:** same as Lab 2.1 — after the demand sync completes (4.3), re-grant the app SP `ALL ON ALL TABLES IN SCHEMA ecommerce` so the Supplier View can read it.
 
 **Storefront shows (Supplier Demand View goes live!):**
 - **`/supplier`** — A per-product demand dashboard: views, clicks, add-to-cart, cart rate, units sold, and a restock flag — aggregated across all shoppers.
 
-> Key demo point: The app only **emitted** raw events (no in-app aggregation). Zerobus landed
-> them in governed Delta, a Lakeflow pipeline did the demand math joined with orders and
-> inventory, and only the small result was synced back to Lakebase. The full **collect →
-> aggregate → present** loop on one platform — **zero application code changes** to surface it.
+> Key demo point: the demand math ran entirely in the governed lakehouse pipeline (Photon,
+> lineage, Delta joins), and only the small aggregated result was synced back to Lakebase. The
+> full **collect → aggregate → present** loop on one platform — **zero application code changes**
+> to surface it.
+
+### After Lab 5.1 — Zerobus Direct Push Ingestion
+
+**What it shows:** The storefront's built-in Zerobus producer (`server/zerobus_producer.py`, off by default) is enabled with a redeploy, and real shopper clicks stream straight into a governed Delta table — no message bus, no app rewrite. This is the live version of the clickstream that Lab 4.1 seeded.
+
+**Database change:** A `clickstream_live` Delta table is created in UC and the app SP is granted `MODIFY`/`SELECT` on it; the app is redeployed with `zerobus_enabled=true`.
+
+**Storefront shows:** No visible change to shoppers — but every view/click/add-to-cart they perform now lands in Delta via Zerobus.
 
 ### After Bonus Lab 1.1 — Register Lakebase in Unity Catalog
 
@@ -231,16 +250,6 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 
 **Storefront shows:** No change. The analytics surface gets the upgrade.
 
-### After Lab 4.1 — Lakehouse Sync (Lakebase to UC)
-
-**Database change:** A Lakehouse Sync pipeline continuously mirrors `orders`, `customers`, and `order_items` from Lakebase to Delta tables under `main.datacart_uc`.
-
-**What's queryable now:**
-- Delta replicas of OLTP tables — heavy analytical aggregations run on photon, no OLTP load
-- A live insert demo proves the Lakebase → Delta loop is closed
-
-**Storefront shows:** No change. BI / ML consumers can now hit the lakehouse side.
-
 ### After Bonus Lab 2.1 — Parallel Development
 
 **Database:** No changes to production. Three feature branches are created:
@@ -248,7 +257,7 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 - `modify-orders` — exchange_rates table, currency FK migration
 - `add-index` — price index on products
 
-**Storefront shows:** No change — all work is on isolated branches. The synced flows from Lab 2.1, Lab 3.1, and Lab 4.1 keep targeting production.
+**Storefront shows:** No change — all work is on isolated branches. The synced flows from Lab 2.1, Lab 3.1, and Lab 4.3 keep targeting production.
 
 ### After Bonus Lab 3.1 — Schema Migration to Production
 
@@ -267,7 +276,7 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
 - **Cart** — "You'll earn X loyalty points" summary with tier badge
 - **Checkout** — Awards loyalty points after placing an order
 
-**UC also reflects the change:** the foreign catalog (Bonus Lab 1.1) sees the new column on the next query; Lakehouse Sync (Lab 4.1) propagates it to Delta on the next sync cycle.
+**UC also reflects the change:** the foreign catalog (Bonus Lab 1.1) sees the new column on the next query; Lakehouse Sync (Lab 3.1) propagates it to Delta on the next sync cycle.
 
 ### After Bonus Lab 4.1 — Branch Reset
 
@@ -353,18 +362,18 @@ GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";
   `ALTER DEFAULT PRIVILEGES` doesn't apply to them.
 - The storefront checks for both `promotions_synced_prod` and `promotions` table names.
 
-### Supplier Demand View empty (after Lab 3.1)
+### Supplier Demand View empty (after Lab 4.3)
 - Check `/api/features` — if `demand_active` is `false`, the `product_demand` sync hasn't landed
   or the SP can't see it. Re-run `GRANT ALL ON ALL TABLES IN SCHEMA ecommerce TO "<SP_CLIENT_ID>";`
-  (Lab 3.1 Step 8).
-- Confirm the Lakeflow pipeline completed and `product_demand` is populated in Unity Catalog.
+  (Lab 4.3 Step 3).
+- Confirm the Lakeflow pipeline completed (Lab 4.2) and `product_demand` is populated in Unity Catalog.
 - The storefront checks for `product_demand_synced_prod`, `product_demand_synced`, and `product_demand`.
 
 ### Federated query errors with "connection refused" (Bonus Lab 1.1)
 - Foreign catalog connections require Lakehouse Federation to be enabled on your SQL warehouse.
 - Use a serverless SQL warehouse if you don't have classic warehouses configured for federation.
 
-### Lakehouse Sync option not visible in the UI (Lab 4.1)
+### Lakehouse Sync option not visible in the UI (Lab 3.1)
 - Lakehouse Sync is gated by region and feature flag — confirm the **Sync to Unity Catalog** option
   is visible on your project's page. If not, ask your Databricks contact to enable the feature on
   this workspace.

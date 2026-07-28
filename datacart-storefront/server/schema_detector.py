@@ -83,7 +83,7 @@ def get_promotions_table() -> str | None:
 
 
 def get_demand_table() -> str | None:
-    """Return the synced product-demand table name (Lab 3.1), or None.
+    """Return the synced product-demand table name (Lab 4.3), or None.
 
     Prefers the canonical synced names, then falls back to any table whose name
     contains "product_demand" — so the Supplier View lights up regardless of the

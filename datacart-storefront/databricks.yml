@@ -12,10 +12,10 @@ variables:
   endpoint_name:
     description: Full resource path of the project's production read-write endpoint.
     default: projects/${var.project_id}/branches/production/endpoints/primary
-  # --- Zerobus clickstream producer (Lab 3.1) -------------------------------
-  # Off by default. Lab 3.1 flips zerobus_enabled=true and sets the endpoint +
-  # bronze table (e.g. via `databricks bundle deploy --var=...` or a target
-  # override) once the bronze table from Lab 1.1 exists.
+  # --- Zerobus clickstream producer (optional; see Lab 5.1) -----------------
+  # Off by default — no lab requires it. To wire the storefront to push its
+  # clickstream in live via Zerobus, flip zerobus_enabled=true and set the
+  # endpoint + a bronze target table (e.g. via `databricks bundle deploy --var=...`).
   zerobus_enabled:
     description: Enable the storefront's Zerobus clickstream producer.
     default: "false"

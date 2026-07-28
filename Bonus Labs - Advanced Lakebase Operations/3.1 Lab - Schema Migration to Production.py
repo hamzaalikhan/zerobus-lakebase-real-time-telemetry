@@ -8,7 +8,7 @@
 # MAGIC > the changes up automatically:
 # MAGIC > 1. The **UC foreign catalog** from Bonus Lab 1.1 starts seeing the new column / tables on the next
 # MAGIC >    query — federation reads live, so there is no propagation delay.
-# MAGIC > 2. The **Lakehouse Sync** pipeline from Lab 4.1 evolves the Delta target schema on its next
+# MAGIC > 2. The **Lakehouse Sync** pipeline from Lab 3.1 evolves the Delta target schema on its next
 # MAGIC >    sync cycle.
 # MAGIC
 # MAGIC This lab also introduces two important branch management features: **Schema Diff** for comparing branches before migration, and **Branch Reset** for refreshing branches from their parent.

@@ -2,18 +2,20 @@
 # MAGIC %md
 # MAGIC # Lab 1.1: Set Up Lakebase and Connect the Storefront
 # MAGIC
-# MAGIC This is the workshop's setup lab. You'll discover your Lakebase project, connect via OAuth,
-# MAGIC seed an e-commerce schema, and grant the DataCart Storefront app the database access it needs
-# MAGIC to come online. By the end, the storefront serves real data and you're ready for the rest of
-# MAGIC the labs.
+# MAGIC This is the workshop's setup lab. You'll set your workshop inputs once (catalog, schema),
+# MAGIC **create the Unity Catalog** everything downstream writes to, discover your Lakebase project,
+# MAGIC connect via OAuth, seed an e-commerce schema, and grant the DataCart Storefront app the database
+# MAGIC access it needs to come online. By the end, the storefront serves real data and you're ready for
+# MAGIC the rest of the labs.
 # MAGIC
 # MAGIC ## Learning Objectives
-# MAGIC 1. **Discover** your Lakebase Autoscaling project in the workspace
-# MAGIC 2. **Connect** to a Lakebase database using OAuth token authentication
-# MAGIC 3. **Create and populate** a PostgreSQL `ecommerce` schema (5 tables, realistic data)
-# MAGIC 4. **Grant** the storefront app's service principal access to that schema
-# MAGIC 5. **Provision** the clickstream **bronze** Delta table in Unity Catalog and grant the app's
-# MAGIC    SP permission to write to it — the landing zone for Lab 3.1's Zerobus ingestion
+# MAGIC 1. **Configure** the workshop inputs with notebook **widgets** (catalog, schema) — set once here,
+# MAGIC    reused by every downstream lab
+# MAGIC 2. **Create** a Unity Catalog with an explicit **managed storage location** (required for synced
+# MAGIC    tables and Lakehouse Sync in later labs)
+# MAGIC 3. **Discover** your Lakebase Autoscaling project and **connect** using OAuth token authentication
+# MAGIC 4. **Create and populate** a PostgreSQL `ecommerce` schema (5 tables, realistic data)
+# MAGIC 5. **Grant** the storefront app's service principal access to that schema
 # MAGIC
 # MAGIC > **Setup expectation**: Your Lakebase project and the DataCart Storefront app are deployed by
 # MAGIC > the bundle before the workshop. If they aren't, see `WORKSHOP_SETUP.md`.
@@ -48,9 +50,12 @@
 # MAGIC %md
 # MAGIC ## Architecture After This Lab
 # MAGIC ```
+# MAGIC Unity Catalog: <your-catalog>                           ← created in this lab (Step 1)
+# MAGIC └── ecommerce (schema)                                  ← the governed lakehouse side later labs use
+# MAGIC
 # MAGIC Lakebase Project: zerobus-lakebase-<your-user-id>        ← deployed by the bundle
 # MAGIC └── production (default branch)
-# MAGIC     └── ecommerce (schema)                              ← created in this lab
+# MAGIC     └── ecommerce (schema)                              ← created + seeded in this lab
 # MAGIC         ├── customers    (100 rows)
 # MAGIC         ├── products     (50 rows)
 # MAGIC         ├── inventory    (50 rows)
@@ -58,15 +63,12 @@
 # MAGIC         └── order_items  (~55 rows)
 # MAGIC
 # MAGIC DataCart Storefront app  ──(SP granted access in Step 7)──▶  ecommerce schema
-# MAGIC
-# MAGIC Unity Catalog: <your-catalog>.ecommerce                  ← governed lakehouse side
-# MAGIC └── clickstream_bronze  (empty Delta table)              ← created in Step 8 (Lab 3.1's Zerobus target)
 # MAGIC ```
 # MAGIC
-# MAGIC > **Two sides, one loop.** Steps 1–7 set up the **Lakebase (OLTP serving)** side the storefront
-# MAGIC > reads from. Step 8 sets up the **Unity Catalog (lakehouse)** side that Lab 3.1's Zerobus
-# MAGIC > clickstream lands in. Lab 3.1 aggregates the clickstream in UC and syncs the result *back*
-# MAGIC > to Lakebase — closing the collect → aggregate → present loop.
+# MAGIC > **Two sides, one platform.** This lab creates both the **Unity Catalog (lakehouse)** side and
+# MAGIC > seeds the **Lakebase (OLTP serving)** side the storefront reads from. Later labs move data
+# MAGIC > between them in every direction — reverse ETL (Lab 2.1), Lakehouse Sync (Lab 3.1), a
+# MAGIC > clickstream medallion (Labs 4.1–4.3), and Zerobus push ingestion (Lab 5.1).
 
 # COMMAND ----------
 
@@ -80,7 +82,61 @@ dbutils.library.restartPython()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 1: Discover Your Lakebase Project
+# MAGIC ## Step 1: Configure the Workshop & Create Your Catalog
+# MAGIC
+# MAGIC Everything downstream — this lab and Labs 2.1 through 5.1 — reads from the same **Unity Catalog**
+# MAGIC and **schema**. We set them once here using notebook **widgets** (the input boxes that appear at
+# MAGIC the top of the notebook), so every lab picks up the same values.
+# MAGIC
+# MAGIC | Widget | What it is | Default |
+# MAGIC |---|---|---|
+# MAGIC | `catalog` | The Unity Catalog this workshop creates and uses | `datacart` |
+# MAGIC | `schema` | The schema inside that catalog (matches the Lakebase schema name) | `ecommerce` |
+# MAGIC | `external_location_url` | A cloud storage path you can write to (`s3://...`, `abfss://...`) — the catalog's **managed location** | *(ask your instructor)* |
+# MAGIC
+# MAGIC > **Why a managed location?** Later labs create **synced tables** (Lab 2.1, 4.3) and **Lakehouse
+# MAGIC > Sync** (Lab 3.1). Those features need the catalog to have an explicit managed storage location
+# MAGIC > (an *external location* you have `CREATE` on), not the metastore's default root. We create the
+# MAGIC > catalog that way here so the later labs "just work".
+
+# COMMAND ----------
+
+# Widgets — the workshop's single source of truth. Fill in the boxes at the top of
+# the notebook. Every downstream lab reads the same values.
+dbutils.widgets.text("catalog", "", "1. Catalog name")
+dbutils.widgets.text("schema", "", "2. Schema name")
+dbutils.widgets.text("external_location_url", "", "3. External location URL (s3://... or abfss://...)")
+
+UC_CATALOG = dbutils.widgets.get("catalog").strip()
+UC_SCHEMA = dbutils.widgets.get("schema").strip()
+EXTERNAL_LOCATION_URL = dbutils.widgets.get("external_location_url").strip()
+
+print(f"Catalog:            {UC_CATALOG}")
+print(f"Schema:             {UC_CATALOG}.{UC_SCHEMA}")
+print(f"Managed location:   {EXTERNAL_LOCATION_URL}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Create the catalog and schema
+# MAGIC
+# MAGIC `CREATE CATALOG ... MANAGED LOCATION` points the catalog at your external location. It's
+# MAGIC idempotent (`IF NOT EXISTS`), so it's safe to re-run.
+
+# COMMAND ----------
+
+spark.sql(f"""
+    CREATE CATALOG IF NOT EXISTS {UC_CATALOG}
+    MANAGED LOCATION '{EXTERNAL_LOCATION_URL}'
+""")
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS {UC_CATALOG}.{UC_SCHEMA}")
+print(f"✅ Catalog '{UC_CATALOG}' ready (managed location: {EXTERNAL_LOCATION_URL})")
+print(f"✅ Schema '{UC_CATALOG}.{UC_SCHEMA}' ready")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 2: Discover Your Lakebase Project
 # MAGIC
 # MAGIC The `WorkspaceClient` auto-authenticates inside a Databricks notebook. Your project's
 # MAGIC `project_id` is derived from your numeric user ID (`zerobus-lakebase-<id>`) — that's the
@@ -112,7 +168,7 @@ print(f"   Lakebase UI: {workspace_host}/lakebase/projects/{project_obj.uid}")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 2: Get the Production Branch & Endpoint
+# MAGIC ## Step 3: Get the Production Branch & Endpoint
 # MAGIC
 # MAGIC Every project has a default `production` branch with a primary read-write compute endpoint.
 # MAGIC We need the endpoint's host to connect via `psycopg2`.
@@ -144,7 +200,7 @@ print(f"Production endpoint ready: {prod_host} (port 5432, db databricks_postgre
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 3: Connect via OAuth
+# MAGIC ## Step 4: Connect via OAuth
 # MAGIC
 # MAGIC Lakebase uses **OAuth token authentication** — your Databricks identity generates a
 # MAGIC short-lived database token (no passwords to manage). A Postgres role for your identity was
@@ -171,7 +227,7 @@ print(f"   {version[:60]}...")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 4: Seed the E-Commerce Schema
+# MAGIC ## Step 5: Seed the E-Commerce Schema
 # MAGIC
 # MAGIC We create 5 tables modeling a realistic e-commerce app, using native PostgreSQL features:
 # MAGIC `SERIAL` keys, `REFERENCES` foreign keys, `CHECK`/`UNIQUE` constraints, `ON DELETE CASCADE`.
@@ -251,7 +307,7 @@ print(f"Schema '{db_schema}' created: customers, products, inventory, orders, or
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 5: Seed Sample Data
+# MAGIC ## Step 6: Seed Sample Data
 # MAGIC
 # MAGIC 100 customers, 50 products across 5 categories, 50 inventory rows, 22 orders, and ~55 order
 # MAGIC line items. This data is used across all the labs.
@@ -379,7 +435,7 @@ with conn.cursor() as cur:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 6: Verify the Seed
+# MAGIC ## Step 7: Verify the Seed
 
 # COMMAND ----------
 
@@ -403,7 +459,7 @@ print("\n" + "=" * 55)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 7: Grant the Storefront App Database Access
+# MAGIC ## Step 8: Grant the Storefront App Database Access
 # MAGIC
 # MAGIC The DataCart Storefront app is already deployed. It runs as a **service principal (SP)** — an
 # MAGIC automated identity, separate from your account. When the bundle deployed the app, it **bound
@@ -436,7 +492,7 @@ SP_CLIENT_ID = app_info.service_principal_client_id
 print(f"App:    {APP_NAME}")
 print(f"App SP: {SP_CLIENT_ID}")
 
-# Grant the SP schema access — reusing the owner connection from Step 3.
+# Grant the SP schema access — reusing the owner connection from Step 4.
 with conn.cursor() as cur:
     sp = f'"{SP_CLIENT_ID}"'
     cur.execute(f"GRANT USAGE ON SCHEMA {db_schema} TO {sp};")
@@ -465,83 +521,27 @@ conn.close()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 8: Provision the Clickstream Bronze Table (Unity Catalog)
+# MAGIC ## Step 9: Grant the App's SP Access to the Catalog
 # MAGIC
-# MAGIC Everything above set up the **Lakebase (OLTP)** side — the transactional database the storefront
-# MAGIC reads and writes. This step sets up the **Unity Catalog (lakehouse)** side that Lab 3.1 needs.
-# MAGIC
-# MAGIC In Lab 3.1 the storefront pushes a live **clickstream** (product views, clicks, add-to-cart) into
-# MAGIC the lakehouse using **Zerobus** — a serverless push API that writes directly into a UC-managed
-# MAGIC Delta table, no Kafka or message bus. Two facts drive this step:
-# MAGIC
-# MAGIC 1. **Zerobus does not create tables.** The target Delta table must already exist, with the exact
-# MAGIC    schema the producer sends. We create it here, empty.
-# MAGIC 2. **The app's service principal must be granted write access.** Zerobus authenticates as the
-# MAGIC    storefront's SP (OAuth). Unity Catalog requires the SP to hold `USE CATALOG` + `USE SCHEMA` +
-# MAGIC    `MODIFY` + `SELECT` on the target table. (Note: `ALL PRIVILEGES` alone is **not** sufficient for
-# MAGIC    ingest — `MODIFY` and `SELECT` must be granted explicitly.)
-# MAGIC
-# MAGIC | Column | Type | Meaning |
-# MAGIC |---|---|---|
-# MAGIC | `event_type` | STRING | `view`, `click`, or `add_to_cart` — one table, discriminated by type |
-# MAGIC | `product_id` | INT | Which product the event is about (joins to `products`) |
-# MAGIC | `event_ts` | STRING | When it happened (client-side ISO-8601). Kept raw as STRING; the silver layer casts it to TIMESTAMP. |
-# MAGIC
-# MAGIC > **Why `event_ts` as STRING, not TIMESTAMP?** Zerobus JSON ingest passes the value through as-is;
-# MAGIC > a bronze `TIMESTAMP` column would reject an ISO-8601 string like `2026-07-26T10:00:00+00:00`.
-# MAGIC > Landing raw text in bronze and casting in silver is the standard medallion pattern — bronze
-# MAGIC > captures exactly what arrived, silver cleans and types it.
-# MAGIC
-# MAGIC > **Why one table for three event types?** All three events share the *same shape*. You'd only
-# MAGIC > split into multiple tables when the shapes diverge (e.g. a search event carries a query string,
-# MAGIC > a purchase carries an amount). For view/click/add-to-cart, one table + a discriminator column is
-# MAGIC > simpler and lets the pipeline pivot with `COUNT(*) FILTER (WHERE event_type = ...)`.
+# MAGIC The later labs sync data *between* Unity Catalog and Lakebase. Grant the storefront's service
+# MAGIC principal `USE CATALOG` + `USE SCHEMA` on the catalog you created in Step 1 now, so those labs
+# MAGIC don't have to. (Table-level grants are handled per-lab as new tables appear.)
 
 # COMMAND ----------
-
-# Set the Unity Catalog where the clickstream bronze table lives. Use the SAME catalog you'll
-# use in Labs 2.1 / 3.1 / 4.1 so everything stays together. You need CREATE SCHEMA / CREATE TABLE
-# on it (your own catalog is easiest).
-UC_CATALOG = "<add-your-catalog-name-here>"
-UC_SCHEMA = "ecommerce"
-BRONZE_TABLE = f"{UC_CATALOG}.{UC_SCHEMA}.clickstream_bronze"
-
-# Create the UC schema (idempotent) and the empty bronze Delta table.
-spark.sql(f"CREATE SCHEMA IF NOT EXISTS {UC_CATALOG}.{UC_SCHEMA}")
-spark.sql(f"""
-    CREATE TABLE IF NOT EXISTS {BRONZE_TABLE} (
-        event_type  STRING,
-        product_id  INT,
-        event_ts    STRING
-    )
-    USING DELTA
-    COMMENT 'Raw storefront clickstream — Zerobus ingest target (Lab 3.1). Append-only, at-least-once. event_ts is raw ISO-8601 text; silver casts to TIMESTAMP.'
-""")
-print(f"✅ Bronze clickstream table ready (empty): {BRONZE_TABLE}")
-
-# COMMAND ----------
-
-# Grant the storefront app's SP write access on the bronze table so its Zerobus producer can ingest.
-# APP_NAME / SP_CLIENT_ID were resolved in Step 7; re-resolve here so this cell is safe to run alone.
-APP_NAME = f"storefront-{w.current_user.me().id}"
-SP_CLIENT_ID = w.apps.get(APP_NAME).service_principal_client_id
 
 spark.sql(f"GRANT USE CATALOG ON CATALOG {UC_CATALOG} TO `{SP_CLIENT_ID}`")
 spark.sql(f"GRANT USE SCHEMA ON SCHEMA {UC_CATALOG}.{UC_SCHEMA} TO `{SP_CLIENT_ID}`")
-spark.sql(f"GRANT MODIFY, SELECT ON TABLE {BRONZE_TABLE} TO `{SP_CLIENT_ID}`")
-print(f"✅ Granted USE CATALOG + USE SCHEMA + MODIFY + SELECT on {BRONZE_TABLE}")
-print(f"   to the storefront SP: {SP_CLIENT_ID}")
-print(f"\nLab 3.1 will point its Zerobus producer at this table.")
+print(f"✅ Granted USE CATALOG + USE SCHEMA on {UC_CATALOG}.{UC_SCHEMA} to SP {SP_CLIENT_ID}")
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Done
 # MAGIC
-# MAGIC You discovered the project, seeded the `ecommerce` schema, granted the storefront app access,
-# MAGIC and provisioned the clickstream **bronze** Delta table (with the app SP able to write to it).
-# MAGIC The storefront now serves products, stock, and a working cart, and the lakehouse landing zone
-# MAGIC for Lab 3.1's Zerobus ingestion is in place.
+# MAGIC You configured the workshop widgets, created the `{catalog}` Unity Catalog (with a managed
+# MAGIC location so synced tables and Lakehouse Sync work later), seeded the Lakebase `ecommerce`
+# MAGIC schema, and granted the storefront app access. The storefront now serves products, stock,
+# MAGIC and a working cart.
 # MAGIC
 # MAGIC As later labs add tables (promotions in Lab 2.1, reviews/loyalty in the bonus labs), the SP
 # MAGIC inherits Lakebase access automatically via the `ALTER DEFAULT PRIVILEGES` grants — no need to

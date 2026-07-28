@@ -56,9 +56,9 @@
 # MAGIC
 # MAGIC The marketing team has prepared Spring Sale promotions — product discounts, sale badges, and limited-time offers — in a Delta table in the data lakehouse. Using **Lakebase Synced Tables**, these promotions are pushed to the production database and instantly appear on the storefront with sale badges and discounted prices — without any application code changes.
 # MAGIC
-# MAGIC #### The Real-Time Clickstream Loop (Zerobus)
+# MAGIC #### The Real-Time Clickstream Loop
 # MAGIC
-# MAGIC DataCart wants to know what shoppers are actually interested in — not just what they buy. The storefront emits a live **clickstream** (product views, clicks, add-to-carts) and pushes it straight into a governed Unity Catalog Delta table using **Zerobus**, a serverless push API with no Kafka or message bus to run. A **Lakeflow** pipeline aggregates that stream — joined with seeded orders and inventory — into a per-product **demand** signal, which is synced back to Lakebase and surfaces in a **Supplier Demand View**. This closes the full **collect → aggregate → present** loop on one platform, driven by the app itself.
+# MAGIC DataCart wants to know what shoppers are actually interested in — not just what they buy. A live **clickstream** (product views, clicks, add-to-carts) lands in a governed Unity Catalog Delta table, a **Lakeflow** pipeline aggregates it — joined with the orders and inventory mirrored from Lakebase — into a per-product **demand** signal, and that signal is synced back to Lakebase where it surfaces in a **Supplier Demand View**. This closes the full **collect → aggregate → present** loop on one platform. A final lab shows **Zerobus** — the serverless push API (no Kafka or message bus) that streams this clickstream in live in production.
 # MAGIC
 # MAGIC #### The Unity Catalog Federation Scenario
 # MAGIC
@@ -92,11 +92,11 @@
 # MAGIC
 # MAGIC | Lab | What Happens |
 # MAGIC |-----|-------------|
-# MAGIC | **1.1 Setup & Connect** | Seed the schema, grant the service principal access, and provision the clickstream bronze table — the storefront comes online with products, stock, cart, and orders |
+# MAGIC | **1.1 Setup & Connect** | Set the workshop widgets, create the catalog, seed the schema, and grant the service principal access — the storefront comes online with products, stock, cart, and orders |
 # MAGIC | **2.1 Reverse ETL** | Sale badges, discount prices, "Spring Sale Deals" section appear |
-# MAGIC | **3.1 Clickstream → Zerobus → Medallion** | The storefront streams live clicks to the lakehouse; a Lakeflow pipeline aggregates demand and syncs it back — the Supplier Demand View lights up |
-# MAGIC | **4.1 Lakehouse Sync** | Lakebase tables continuously mirror to Delta in Unity Catalog |
-# MAGIC | **5.1 Connect Apps** | Patterns for connecting applications to your Lakebase project |
+# MAGIC | **3.1 Lakehouse Sync** | Lakebase tables continuously mirror to Delta in Unity Catalog |
+# MAGIC | **4.1–4.3 Real-Time Clickstream Analytics** | Seed a clickstream (4.1), aggregate it into per-product demand with a Lakeflow medallion pipeline (4.2), and sync it back to Lakebase (4.3) — the Supplier Demand View lights up |
+# MAGIC | **5.1 Zerobus** | Turn on the storefront's built-in Zerobus producer and watch real shopper clicks stream live into governed Delta |
 # MAGIC
 # MAGIC **Bonus labs** (`Bonus Labs - Advanced Lakebase Operations/` — optional, advanced Lakebase operations):
 # MAGIC

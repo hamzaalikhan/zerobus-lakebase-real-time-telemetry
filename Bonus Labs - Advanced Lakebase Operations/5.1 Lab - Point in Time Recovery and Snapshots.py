@@ -11,7 +11,7 @@
 # MAGIC ## Why this lab matters for data-centric teams
 # MAGIC
 # MAGIC In a data-centric workshop, PITR is more than a database recovery feature — it's the test of
-# MAGIC whether your downstream data flows are *resilient*. After Bonus Lab 1.1 (federation) and Lab 4.1 (Lakehouse Sync), you have a
+# MAGIC whether your downstream data flows are *resilient*. After Bonus Lab 1.1 (federation) and Lab 3.1 (Lakehouse Sync), you have a
 # MAGIC federated catalog and a Lakehouse Sync pipeline both reading from production. When production
 # MAGIC has an outage, **what happens to those flows, and do they recover automatically?** We'll
 # MAGIC observe that explicitly during the disaster.
