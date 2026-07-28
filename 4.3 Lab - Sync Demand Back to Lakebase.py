@@ -45,12 +45,14 @@ dbutils.library.restartPython()
 
 # COMMAND ----------
 
+dbutils.widgets.text("catalog", "", "1. Catalog name")
+dbutils.widgets.text("schema", "", "2. Schema name")
+
+# COMMAND ----------
+
 from databricks.sdk import WorkspaceClient
 
 w = WorkspaceClient()
-
-dbutils.widgets.text("catalog", "datacart", "1. Catalog name")
-dbutils.widgets.text("schema", "ecommerce", "2. Schema name")
 
 UC_CATALOG = dbutils.widgets.get("catalog").strip()
 UC_SCHEMA = dbutils.widgets.get("schema").strip()

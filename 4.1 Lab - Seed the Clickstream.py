@@ -29,8 +29,10 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "datacart", "1. Catalog name")
-dbutils.widgets.text("schema", "ecommerce", "2. Schema name")
+dbutils.widgets.text("catalog", "", "1. Catalog name")
+dbutils.widgets.text("schema", "", "2. Schema name")
+
+# COMMAND ----------
 
 UC_CATALOG = dbutils.widgets.get("catalog").strip()
 UC_SCHEMA = dbutils.widgets.get("schema").strip()
