@@ -88,13 +88,12 @@ random.seed(42)
 
 NUM_SESSIONS = 500
 
-# Product 1-50 map to categories in the same order Lab 1.1 seeded them.
+# Products 1-50 map to 5 categories in blocks of 10 (matching Lab 1.1's seed order).
 category_order = ["Electronics", "Clothing", "Books", "Home", "Sports"]
 category_weight = {"Electronics": 4, "Clothing": 3, "Books": 1, "Home": 2, "Sports": 2}
-# products 1-10 = Electronics, 11-20 = Clothing, 21-30 = Books, 31-40 = Home, 41-50 = Sports
 prod_category = {pid: category_order[(pid - 1) // 10] for pid in range(1, 51)}
 
-# Weighted pool of product_ids to sample views from (popular categories appear more).
+# Popular categories appear more often in the pool we sample views from.
 weighted_pool = []
 for prod_id, cat in prod_category.items():
     weighted_pool.extend([prod_id] * category_weight[cat])

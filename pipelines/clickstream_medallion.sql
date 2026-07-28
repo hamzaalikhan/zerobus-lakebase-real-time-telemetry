@@ -1,37 +1,9 @@
--- Lakeflow Declarative Pipeline — Clickstream Medallion (Lab 4.2)
--- =============================================================================
--- This is the "aggregate" step of the workshop loop. It reads the raw clickstream
--- landed in the bronze table (seeded in Lab 4.1), cleans and enriches it, and rolls
--- it up into a per-product demand table the Supplier View consumes.
---
--- Authored entirely in SQL (no PySpark) — the audience is lakehouse-native and may
--- not know Spark. Bronze → Silver → Gold:
---
---   clickstream_bronze  (plain Delta, seeded in Lab 4.1)
---         │  STREAM()  — incremental, append-only
---         ▼
---   clickstream_silver  (STREAMING TABLE) — dedup, enrich w/ product name + category
---         │
---         ▼
---   product_demand      (MATERIALIZED VIEW) — views/clicks/carts per product, cart_rate,
---                         + order_items (units_sold, conversion) + inventory (stock, demand-vs-stock)
---
--- Pipeline configuration expected (set in the Lab 4.2 notebook):
---   source_catalog : the UC catalog holding the ecommerce schema (your workshop catalog)
---   source_schema  : "ecommerce"
--- The products / inventory / order_items join tables come from Lakehouse Sync (Lab 3.1),
--- which mirrors them from Lakebase into this same schema. (Lab 4.2 seeds them as a
--- fallback if the sync wasn't run.) The pipeline's own target (where silver/gold are
--- created) should be the SAME catalog + schema, so the Lab 4.3 sync finds product_demand.
--- =============================================================================
+-- Clickstream Medallion pipeline (Lab 4.2): bronze → silver → gold.
+-- Config (set in the Lab 4.2 notebook): source_catalog, source_schema ("ecommerce").
+-- products / inventory / order_items come from Lakehouse Sync (Lab 3.1), or the
+-- Lab 4.2 fallback seed. Silver + gold are created in the same catalog + schema.
 
--- -----------------------------------------------------------------------------
--- SILVER — clean, dedup, enrich
--- -----------------------------------------------------------------------------
--- A clickstream can contain duplicate rows (e.g. at-least-once delivery, retries).
--- We deduplicate on the full natural key. The expectations drop rows that are
--- structurally unusable (null product / type / timestamp, or an unknown event type)
--- rather than let them poison the rollups.
+-- SILVER — dedup the at-least-once stream, drop unusable rows, enrich with product info.
 CREATE OR REFRESH STREAMING TABLE clickstream_silver
   (
     CONSTRAINT valid_event_type   EXPECT (event_type IN ('view', 'click', 'add_to_cart')) ON VIOLATION DROP ROW,
@@ -59,13 +31,8 @@ FROM deduped d
 LEFT JOIN ${source_catalog}.${source_schema}.products p
   ON p.id = d.product_id;
 
--- -----------------------------------------------------------------------------
--- GOLD — per-product demand signal (the lab's deliverable)
--- -----------------------------------------------------------------------------
--- Pivots the event stream into per-product counts with COUNT(*) FILTER, derives a
--- cart-conversion rate, and joins the seeded transactional context (order_items for
--- realized sales, inventory for stock) so a supplier sees demand AND whether stock
--- can cover it — the "demand vs. stock / revenue-at-risk" story.
+-- GOLD — per-product demand: clickstream counts + cart rate, joined with order_items
+-- (realized sales) and inventory (stock) so a supplier sees demand vs. stock.
 CREATE OR REFRESH MATERIALIZED VIEW product_demand
   COMMENT 'Per-product demand: behavioural clickstream signal joined with seeded orders + inventory. Synced back to Lakebase for the Supplier View.'
 AS
@@ -77,8 +44,6 @@ WITH clicks AS (
     COUNT(*) FILTER (WHERE event_type = 'view')                AS views,
     COUNT(*) FILTER (WHERE event_type = 'click')               AS clicks,
     COUNT(*) FILTER (WHERE event_type = 'add_to_cart')         AS add_to_carts
-  -- Reference the pipeline's own silver table by name (the legacy LIVE.* prefix
-  -- is deprecated for new Lakeflow pipelines).
   FROM clickstream_silver
   GROUP BY product_id
 ),

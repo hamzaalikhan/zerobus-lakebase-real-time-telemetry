@@ -242,7 +242,7 @@ dbutils.library.restartPython()
 
 # COMMAND ----------
 
-# Widgets — set to the SAME catalog/schema you created in Lab 1.1.
+# Set these to the SAME catalog/schema you created in Lab 1.1.
 dbutils.widgets.text("catalog", "", "1. Catalog name")
 dbutils.widgets.text("schema", "", "2. Schema name")
 
@@ -258,15 +258,10 @@ UC_CATALOG = dbutils.widgets.get("catalog").strip()
 UC_SCHEMA = dbutils.widgets.get("schema").strip()
 UC_TABLE = f"{UC_CATALOG}.{UC_SCHEMA}.promotions"
 
-# Bundle-deployed Lakebase project (datacart-storefront/databricks.yml)
-# Project name is auto-derived per user from ${workspace.current_user.id}
 project_name = f"zerobus-lakebase-{w.current_user.me().id}"
 db_user = w.current_user.me().user_name
-
-# Lakebase schema (matches the UC schema name).
 db_schema = "ecommerce"
 
-# Ensure the schema exists (Lab 1.1 created it; idempotent here).
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {UC_CATALOG}.{UC_SCHEMA}")
 
 print(f"✅ SDK initialized")
@@ -424,20 +419,17 @@ conn_prod, _, _ = connect_to_branch("production")
 
 # COMMAND ----------
 
-# Get product prices from Lakebase
+# Read product prices from Lakebase so we can compute sale prices.
 with conn_prod.cursor() as cur:
     cur.execute(f"SELECT id, price FROM {db_schema}.products ORDER BY id")
     product_prices = {row[0]: float(row[1]) for row in cur.fetchall()}
 
-# Update Delta table with computed sale prices
 from pyspark.sql.functions import col, round as spark_round, lit
 
 promo_df = spark.table(UC_TABLE)
-# Create a mapping DataFrame
 price_rows = [Row(product_id=pid, original_price=price) for pid, price in product_prices.items()]
 prices_df = spark.createDataFrame(price_rows)
 
-# Join and compute sale_price
 updated_df = (
     promo_df.join(prices_df, "product_id", "left")
     .withColumn("sale_price",
@@ -512,19 +504,17 @@ display(spark.sql(f"""
 
 # COMMAND ----------
 
-# Get the app's SP client ID
 APP_NAME = f"storefront-{w.current_user.me().id}"
 app_info = w.apps.get(APP_NAME)
 SP_CLIENT_ID = app_info.service_principal_client_id
 print(f"App SP: {SP_CLIENT_ID}")
 
-# Connect as the project owner to grant permissions
 conn_prod, _, _ = connect_to_branch("production")
 
 with conn_prod.cursor() as cur:
     sp_role = f'"{SP_CLIENT_ID}"'
 
-    # Re-grant ALL on ALL tables — this picks up the new synced table
+    # Re-grant ALL on ALL tables — this picks up the new synced table.
     cur.execute(f"GRANT ALL ON ALL TABLES IN SCHEMA {db_schema} TO {sp_role};")
     print(f"✅ Granted ALL on ALL tables in {db_schema} (includes synced tables)")
 

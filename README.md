@@ -148,16 +148,6 @@ databricks bundle run datacart_storefront --profile <your-profile>
 
 > **Where the source lives after deploy** — at `/Workspace/Users/<your-email>/.bundle/datacart-storefront-data-centric/dev/files/`. That's what the app's `source_code_path` points at. Editing files in your Git folder doesn't change what the running app sees until you re-run `bundle deploy` (re-upload) and `bundle run` (re-deploy source onto the app).
 
-#### Alternative: No-DABs setup via the SDK
-
-If you can't or don't want to use DABs at all (e.g., your workspace doesn't support the workspace deploy flow and you don't have the CLI), open the **`Optional - Create Lakebase Project (SDK).py`** notebook in this folder. The notebook handles almost everything the bundle does, via the Databricks SDK:
-
-1. Creates the Lakebase Autoscaling project (`zerobus-lakebase-<your-user-id>` — same name pattern as the bundle).
-2. Verifies the default `production` branch and compute endpoint are ready.
-3. Creates the storefront app (`storefront-<your-user-id>`) **with the Lakebase project pre-attached as a database resource**, so the platform auto-injects `PGHOST` / `PGUSER` / `PGPORT` / `PGDATABASE` env vars on the next source deploy.
-
-The **only** step left for you afterwards is pointing the app at the source code and clicking **Deploy** in the workspace UI — instructions are in the notebook's final cell. Once that's done, all the regular labs (1.1 onward) work the same way as the DAB path because they discover the project and app by name.
-
 ### Step 2: Run Lab 1.1 to set up and connect
 
 Open **`1.1 Lab - Setup Lakebase and Connect the Storefront`** in the workspace. Set the notebook
