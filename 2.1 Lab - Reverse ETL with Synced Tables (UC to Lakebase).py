@@ -249,8 +249,8 @@ import psycopg2
 w = WorkspaceClient()
 
 # Widgets — set to the SAME catalog/schema you created in Lab 1.1.
-dbutils.widgets.text("catalog", "datacart", "1. Catalog name")
-dbutils.widgets.text("schema", "ecommerce", "2. Schema name")
+dbutils.widgets.text("catalog", "", "1. Catalog name")
+dbutils.widgets.text("schema", "", "2. Schema name")
 
 UC_CATALOG = dbutils.widgets.get("catalog").strip()
 UC_SCHEMA = dbutils.widgets.get("schema").strip()
@@ -491,71 +491,6 @@ display(spark.sql(f"""
 # MAGIC </div>
 # MAGIC
 # MAGIC **Wait for the sync to complete before continuing.** Check status in the Catalog UI.
-
-# COMMAND ----------
-
-# MAGIC %md-sandbox
-# MAGIC ### Deploy synced tables as code
-# MAGIC
-# MAGIC The UI flow above is the fastest way to provision a synced table. For production, you'd
-# MAGIC typically declare the sync alongside the rest of your infrastructure as code so it lives
-# MAGIC in Git and deploys through CI/CD.
-# MAGIC
-# MAGIC > **Declarative Automation Bundles**: not supported for synced tables today — coming soon.
-# MAGIC > For now, use Terraform if you want an IaC-managed sync.
-# MAGIC
-# MAGIC #### Terraform
-# MAGIC
-# MAGIC The Databricks Terraform provider includes `databricks_postgres_synced_table`, which
-# MAGIC references the production branch of your Lakebase project directly.
-# MAGIC ([typical project setup](https://learn.microsoft.com/en-us/azure/databricks/oltp/projects/terraform-typical-project))
-# MAGIC
-# MAGIC ```hcl
-# MAGIC # Reference the bundle-deployed Lakebase Autoscaling project.
-# MAGIC data "databricks_current_user" "me" {}
-# MAGIC
-# MAGIC locals {
-# MAGIC   project_id     = "zerobus-lakebase-${data.databricks_current_user.me.id}"
-# MAGIC   production_arn = "projects/${local.project_id}/branches/production"
-# MAGIC }
-# MAGIC
-# MAGIC variable "uc_catalog" {
-# MAGIC   description = "The UC catalog containing your ecommerce.promotions Delta table"
-# MAGIC   type        = string
-# MAGIC }
-# MAGIC
-# MAGIC resource "databricks_postgres_synced_table" "promotions" {
-# MAGIC   synced_table_id = "${var.uc_catalog}.ecommerce.promotions_synced_prod"
-# MAGIC
-# MAGIC   spec = {
-# MAGIC     branch                             = local.production_arn
-# MAGIC     postgres_database                  = "databricks_postgres"
-# MAGIC     source_table_full_name             = "${var.uc_catalog}.ecommerce.promotions"
-# MAGIC     primary_key_columns                = ["id"]
-# MAGIC     scheduling_policy                  = "SNAPSHOT"   # SNAPSHOT | TRIGGERED | CONTINUOUS
-# MAGIC     create_database_objects_if_missing = true
-# MAGIC
-# MAGIC     new_pipeline_spec = {
-# MAGIC       storage_catalog = var.uc_catalog
-# MAGIC       storage_schema  = "ecommerce"
-# MAGIC     }
-# MAGIC   }
-# MAGIC }
-# MAGIC ```
-# MAGIC
-# MAGIC Apply with:
-# MAGIC
-# MAGIC ```bash
-# MAGIC terraform apply -var="uc_catalog=<your-catalog>"
-# MAGIC ```
-# MAGIC
-# MAGIC > **Heads up.** `scheduling_policy` accepts `SNAPSHOT`, `TRIGGERED`, or `CONTINUOUS`. Triggered
-# MAGIC > and Continuous require **Change Data Feed** on the source Delta table (we enabled this in
-# MAGIC > Step 1). The `new_pipeline_spec.storage_catalog` / `storage_schema` is where the sync
-# MAGIC > pipeline persists checkpoints — it must be a UC catalog where you have `CREATE TABLE` rights.
-# MAGIC
-# MAGIC For the rest of this workshop we use the UI-created synced table. The next step
-# MAGIC (granting the SP access) is the same regardless of which path created the synced table.
 
 # COMMAND ----------
 
